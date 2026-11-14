@@ -258,7 +258,7 @@ function useGeometry(model) {
       /* spine cover: sector around the fold's outward direction, its rims
          tucked inside the body so nothing pokes through the display */
       barrel: new THREE.CylinderGeometry(1, 1, 1, 48, 1, false, Math.PI - 1.22, 2.44),
-      barrelBand: new THREE.CylinderGeometry(1.006, 1.006, 1, 32, 1, false, Math.PI - 1.22, 2.44),
+      barrelBand: new THREE.CylinderGeometry(1.004, 1.004, 1, 32, 1, true, Math.PI - 1.22, 2.44),
       knuckle: new THREE.TorusGeometry(1, 0.13, 10, 48),
       speakerHole: new THREE.CylinderGeometry(0.024, 0.024, 0.09, 10),
       punch: new THREE.SphereGeometry(1, 24, 16),
@@ -364,7 +364,7 @@ function Hinge({ mats, geos, T, length, form, barrelRef, pivotZ, hinge }) {
               <mesh
                 key={i}
                 geometry={geos.barrelBand}
-                material={mats.ring}
+                material={mats.dark}
                 scale={[R, length * 0.075, R]}
                 position={[0, k, 0]}
               />

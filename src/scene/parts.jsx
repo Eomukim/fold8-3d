@@ -216,7 +216,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
      always sits at the free end; the Flex Window fills the space below it.   */
   const yTop = -half * 0.845;
 
-  const Screen = ({ x, y, w, h, band }) => (
+  const Screen = ({ x, y, w, h, band, dz = 0 }) => (
     <group position={[x, y, 0]}>
       {band != null && (
         <RB
@@ -230,7 +230,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
       <mesh
         geometry={splitScreenPlane(w, h, 0, 1)}
         material={mats.cover}
-        position={[0, 0, zOut - (band != null ? 0.085 : 0.008)]}
+        position={[0, 0, zOut - (band != null ? 0.085 : 0.008) + dz]}
         rotation={[0, Math.PI, Math.PI]}
       />
     </group>
@@ -274,7 +274,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
           position={[0, yTop + 0.28, zOut - 0.03]}
           material={mats.bezel}
         />
-        <Screen x={-width * 0.13} y={yTop + 0.28} w={sw} h={Math.min(sh, bandH - 0.55)} />
+        <Screen x={-width * 0.13} y={yTop + 0.28} w={sw} h={Math.min(sh, bandH - 0.55)} dz={-0.085} />
         {[0.46, -0.46].map((dy) => (
           <group key={dy} position={[width * 0.31, yTop + 0.28 + dy, zOut - 0.1]}>
             <Lens geo={geo} mats={mats} r={lensScale} style="dark" />
