@@ -82,6 +82,6 @@ export const COLORWAYS = {
 export const CAMERA_PRESETS = {
   overview: { pos: [28, 8.5, 52], target: [0, -2.0, 0] },
   hinge: { pos: [-6.8, -2.6, -9.2], target: [0, 0.4, 0] },
-  camera: { pos: [-8.5, 6.2, -22.5], target: [2.2, 4.6, -0.4] },
+  camera: { pos: [-11.5, 8.6, -29], target: [2.0, 4.2, -0.4] },
   cover: { pos: [-18, 3.2, -37], target: [-3.0, 0.9, 0] },
 };

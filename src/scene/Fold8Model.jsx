@@ -58,8 +58,8 @@ function useGeometry() {
       lensRing: new THREE.CylinderGeometry(0.5, 0.5, 0.11, 56, 1, false),
       lensRim: new THREE.CylinderGeometry(0.44, 0.46, 0.08, 56, 1, false),
       lensGlass: new THREE.SphereGeometry(0.42, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.5),
-      knuckle: new THREE.TorusGeometry(0.213, 0.026, 12, 56),
-      groove: new THREE.TorusGeometry(0.214, 0.008, 8, 56),
+      knuckle: new THREE.TorusGeometry(0.184, 0.026, 12, 56),
+      groove: new THREE.TorusGeometry(0.19, 0.005, 8, 56),
       spineBarrel: new THREE.CylinderGeometry(0.212, 0.212, H * 0.862, 64, 1, false),
       spineTaper: new THREE.CylinderGeometry(0.16, 0.212, 0.34, 48, 1, false),
       speakerHole: new THREE.CylinderGeometry(0.026, 0.026, 0.09, 10),
@@ -88,16 +88,16 @@ function useMaterials(colorway) {
         roughnessMap: brushed,
         clearcoat: 0.5,
         clearcoatRoughness: 0.24,
-        envMapIntensity: 1.6,
+        envMapIntensity: 1.75,
       }),
       back: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(c.back),
-        metalness: 0.3,
-        roughness: 0.4,
+        metalness: 0.55,
+        roughness: 0.36,
         roughnessMap: micro,
-        clearcoat: 0.85,
-        clearcoatRoughness: 0.32,
-        envMapIntensity: 1.0,
+        clearcoat: 0.9,
+        clearcoatRoughness: 0.28,
+        envMapIntensity: 1.15,
       }),
       hinge: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(c.hinge),
@@ -416,8 +416,8 @@ export default function Fold8Model() {
 
     const a = Math.PI - cur.current; // 0 = flat, PI = closed
     foldBus.deg = THREE.MathUtils.radToDeg(cur.current);
-    if (leftRef.current) leftRef.current.rotation.y = -a;
-    if (spineDetailRef.current) spineDetailRef.current.rotation.y = -a * 0.5;
+    if (leftRef.current) leftRef.current.rotation.y = a;
+    if (spineDetailRef.current) spineDetailRef.current.rotation.y = a * 0.5;
     if (rootRef.current) rootRef.current.position.x = -(HALF / 2) * (1 - Math.cos(a));
 
     const on = s.screensOn ? 1 : 0.04;

@@ -75,6 +75,7 @@ function Studio({ quality }) {
       <ambientLight intensity={0.22} />
       <directionalLight position={[9, 13, 11]} intensity={1.15} color="#ffffff" />
       <directionalLight position={[-8, 4, 6]} intensity={0.4} color="#a9c0ff" />
+      <directionalLight position={[-14, 5, -9]} intensity={0.55} color="#d6deff" />
       <pointLight position={[-9, -4, 8]} intensity={22} color="#6c7bff" distance={40} decay={2} />
 
       <Environment resolution={quality === 'high' ? 256 : 128} frames={1}>
@@ -130,13 +131,14 @@ function StageFloor() {
         <meshBasicMaterial map={glow} transparent blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.75} />
       </mesh>
       <ContactShadows
-        position={[0, -10.12, 0]}
-        scale={34}
-        resolution={512}
-        blur={2.6}
-        far={9}
-        opacity={0.72}
-        color="#000308"
+        position={[0, -10.1, 0]}
+        scale={30}
+        resolution={1024}
+        blur={1.6}
+        far={12}
+        frames={1}
+        opacity={0.55}
+        color="#000206"
       />
     </group>
   );
