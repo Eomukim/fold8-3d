@@ -45,8 +45,11 @@ def wait_fold(page, target, timeout=90):
     return fold_val(page)
 
 
-def shot(page, path):
+def shot(page, path, settle_extra=6):
+    page.wait_for_timeout(settle_extra * 1000)
     t0 = time.time()
+    page.screenshot(path=path, timeout=180000)
+    page.wait_for_timeout(2500)
     page.screenshot(path=path, timeout=180000)
     im = np.asarray(Image.open(path).convert('RGB')).astype(float)
     print(f'  saved {path} {im.shape[1]}x{im.shape[0]} mean={im.mean():.1f} in {time.time()-t0:.0f}s')

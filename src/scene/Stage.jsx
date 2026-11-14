@@ -11,23 +11,38 @@ import { useShowcase } from '../store';
 /* ---------------- camera preset transitions ---------------- */
 
 function CameraRig({ controls }) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const preset = useShowcase((s) => s.camera);
   const seq = useShowcase((s) => s.cameraSeq);
 
   const anim = useRef(null);
 
+  // Pull the camera back on narrow (portrait) screens so the whole device fits.
+  const fitScale = useMemo(() => {
+    const aspect = size.width / Math.max(1, size.height);
+    const fov = THREE.MathUtils.degToRad(camera.fov || 27);
+    const tan = Math.tan(fov / 2);
+    const needV = (10 * 1.18) / tan;
+    const needH = (7.6 * 1.12) / (tan * aspect);
+    const ov = CAMERA_PRESETS.overview;
+    const base = Math.hypot(ov.pos[0] - ov.target[0], ov.pos[1] - ov.target[1], ov.pos[2] - ov.target[2]);
+    return Math.min(2.6, Math.max(1, Math.max(needV, needH) / base));
+  }, [size.width, size.height, camera.fov]);
+
   useEffect(() => {
     const p = CAMERA_PRESETS[preset] ?? CAMERA_PRESETS.overview;
+    const target = new THREE.Vector3(...p.target);
+    const pos = new THREE.Vector3(...p.pos);
+    const dir = pos.clone().sub(target).multiplyScalar(fitScale);
     anim.current = {
       t: 0,
       fromPos: camera.position.clone(),
       fromTarget: controls ? controls.target.clone() : new THREE.Vector3(),
-      toPos: new THREE.Vector3(...p.pos),
-      toTarget: new THREE.Vector3(...p.target),
+      toPos: target.clone().add(dir),
+      toTarget: new THREE.Vector3(target.x, target.y * fitScale, target.z),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, seq]);
+  }, [preset, seq, fitScale]);
 
   useEffect(() => {
     if (!controls) return undefined;
@@ -163,8 +178,8 @@ function SceneContents() {
         enablePan={false}
         enableDamping
         dampingFactor={0.07}
-        minDistance={11}
-        maxDistance={62}
+        minDistance={8}
+        maxDistance={160}
         minPolarAngle={Math.PI * 0.12}
         maxPolarAngle={Math.PI * 0.62}
         target={[0, 0.5, 0]}
