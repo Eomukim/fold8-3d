@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SEG } from './perf';
 
 /**
  * Rounded rectangle centred on (cx, cy).
@@ -26,7 +27,7 @@ export function roundedRectShape(w, h, radii, cx = 0, cy = 0) {
 }
 
 /** Extruded, chamfered slab from a 2D shape, centred on z as well. */
-export function extrudeChamfered(shape, thickness, bevel = 0.05, curveSegments = 12) {
+export function extrudeChamfered(shape, thickness, bevel = 0.05, curveSegments = SEG.curve) {
   const depth = Math.max(0.001, thickness - 2 * bevel);
   const geo = new THREE.ExtrudeGeometry(shape, {
     depth,
@@ -52,7 +53,7 @@ export function frameGeometry(w, h, radiusOuter, inset, depth, cx = 0, cy = 0) {
     cx,
     cy
   );
-  const pts = inner.getPoints(72);
+  const pts = inner.getPoints(SEG.frame * 3);
   const hole = new THREE.Path();
   hole.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i += 1) hole.lineTo(pts[i].x, pts[i].y);
@@ -65,7 +66,7 @@ export function frameGeometry(w, h, radiusOuter, inset, depth, cx = 0, cy = 0) {
     bevelThickness: 0.008,
     bevelSize: 0.008,
     bevelSegments: 2,
-    curveSegments: 24,
+    curveSegments: SEG.frame,
     steps: 1,
   });
   geo.translate(0, 0, -depth / 2);
@@ -75,7 +76,7 @@ export function frameGeometry(w, h, radiusOuter, inset, depth, cx = 0, cy = 0) {
 
 /** A plane whose UVs are a sub-rectangle of the full 0..1 texture space. */
 export function splitScreenPlane(w, h, uFrom, uTo, vFrom = 0, vTo = 1) {
-  const geo = new THREE.PlaneGeometry(w, h, 24, 1);
+  const geo = new THREE.PlaneGeometry(w, h, SEG.screen, 1);
   const uv = geo.attributes.uv;
   for (let i = 0; i < uv.count; i += 1) {
     const u = uv.getX(i);

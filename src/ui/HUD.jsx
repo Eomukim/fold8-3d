@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useShowcase } from '../store';
 import { CATALOG, SERIES_META } from '../lib/models';
 import { foldBus } from '../lib/foldBus';
@@ -15,7 +15,7 @@ export default function HUD() {
   const modelId = useShowcase((s) => s.modelId);
   const setSeries = useShowcase((s) => s.setSeries);
   const setModel = useShowcase((s) => s.setModel);
-  const foldTarget = useShowcase((s) => s.foldTarget);
+  const foldTarget = useShowcase.getState().foldTarget;
   const setFold = useShowcase((s) => s.setFold);
   const colorway = useShowcase((s) => s.colorway);
   const setColorway = useShowcase((s) => s.setColorway);
@@ -34,8 +34,9 @@ export default function HUD() {
   const readoutRef = useRef(null);
   const sliderRef = useRef(null);
   const dragging = useRef(false);
-  const [liveDeg, setLiveDeg] = useState(180);
 
+  /* the fold readout is written straight to the DOM every animation frame:
+     it never re-renders this (fairly large) HUD tree while the slider moves */
   useEffect(() => {
     let raf;
     let last = -1;
@@ -44,14 +45,28 @@ export default function HUD() {
       if (Math.abs(d - last) > 0.4) {
         last = d;
         if (readoutRef.current) readoutRef.current.textContent = `${Math.round(d)}°`;
-        if (sliderRef.current && !dragging.current) sliderRef.current.value = String(Math.round(d));
-        setLiveDeg(d);
+        if (sliderRef.current) {
+          if (!dragging.current) sliderRef.current.value = String(Math.round(d));
+          sliderRef.current.style.setProperty('--pct', `${(d / 180) * 100}%`);
+        }
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  /* preset highlight as a bitmask so dragging the slider doesn't re-render
+     the HUD on every step (only when a preset is actually crossed) */
+  const presetMask = useShowcase((s) => {
+    if (s.auto) return 0;
+    const flex = useShowcase.getState().model().flex;
+    let m = 0;
+    if (Math.abs(s.foldTarget - 180) < 1) m |= 1;
+    if (Math.abs(s.foldTarget - flex) < 1) m |= 2;
+    if (Math.abs(s.foldTarget - 0) < 1) m |= 4;
+    return m;
+  });
 
   useEffect(() => {
     const onKey = (e) => {
@@ -74,9 +89,9 @@ export default function HUD() {
   }, [dismissHint]);
 
   const presets = [
-    { label: '펼치기', angle: 180, meta: '180°' },
-    { label: '플렉스', angle: model.flex, meta: `${model.flex}°` },
-    { label: '접기', angle: 0, meta: '0°' },
+    { label: '펼치기', angle: 180, meta: '180°', bit: 1 },
+    { label: '플렉스', angle: model.flex, meta: `${model.flex}°`, bit: 2 },
+    { label: '접기', angle: 0, meta: '0°', bit: 4 },
   ];
 
   const modeLabel = auto ? '자동 쇼케이스 재생 중' : screensOn ? '디스플레이 켜짐' : '디스플레이 꺼짐';
@@ -203,7 +218,6 @@ export default function HUD() {
                   dragging.current = true;
                   setFold(Number(e.target.value));
                 }}
-                style={{ '--pct': `${(liveDeg / 180) * 100}%` }}
               />
               <div className="slider-ticks" aria-hidden="true">
                 <span>0°</span>
@@ -216,7 +230,7 @@ export default function HUD() {
                 <button
                   key={p.label}
                   type="button"
-                  className={`pill ${Math.abs(foldTarget - p.angle) < 1 && !auto ? 'active' : ''}`}
+                  className={`pill ${presetMask === p.bit ? 'active' : ''}`}
                   onClick={() => setFold(p.angle)}
                 >
                   {p.label}

@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
 import { splitScreenPlane, frameGeometry } from '../lib/shapes';
+import { SEG } from '../lib/perf';
+
+const SM = (n) => Math.max(2, Math.round(n * SEG.smooth));
 
 /* ------------------------------------------------------------------ */
 /*  lens stack                                                        */
@@ -39,10 +42,10 @@ function Flash({ mats, s = 1, ...rest }) {
   return (
     <group scale={[s, s, s]} {...rest}>
       <mesh material={mats.ring}>
-        <cylinderGeometry args={[0.17, 0.17, 0.09, 32]} />
+        <cylinderGeometry args={[0.17, 0.17, 0.09, SEG.small]} />
       </mesh>
       <mesh material={mats.flash} position={[0, 0, 0.055]}>
-        <cylinderGeometry args={[0.115, 0.115, 0.03, 32]} />
+        <cylinderGeometry args={[0.115, 0.115, 0.03, SEG.small]} />
       </mesh>
     </group>
   );
@@ -59,10 +62,10 @@ export function CameraIsland({ model, mats, zBack, T }) {
 
   const geo = useMemo(
     () => ({
-      lensRing: new THREE.CylinderGeometry(0.46, 0.46, 0.1, 56, 1, false),
-      lensRingInner: new THREE.CylinderGeometry(0.37, 0.39, 0.05, 56, 1, false),
-      lensRim: new THREE.CylinderGeometry(0.33, 0.35, 0.08, 56, 1, false),
-      lensGlass: new THREE.SphereGeometry(0.39, 44, 22, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      lensRing: new THREE.CylinderGeometry(0.46, 0.46, 0.1, SEG.lens, 1, false),
+      lensRingInner: new THREE.CylinderGeometry(0.37, 0.39, 0.05, SEG.lens, 1, false),
+      lensRim: new THREE.CylinderGeometry(0.33, 0.35, 0.08, SEG.lens, 1, false),
+      lensGlass: new THREE.SphereGeometry(0.39, SEG.lensGlass[0], SEG.lensGlass[1], 0, Math.PI * 2, 0, Math.PI * 0.5),
     }),
     []
   );
@@ -77,7 +80,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
       <RB
         args={[w, h, plate * 2]}
         radius={0.16}
-        smoothness={4}
+        smoothness={SM(4)}
         position={[x, y, z]}
         material={mats.ringDark}
         castShadow
@@ -86,7 +89,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
       <RB
         args={[w, h, plate * 1.5]}
         radius={0.24}
-        smoothness={4}
+        smoothness={SM(4)}
         position={[x, y, z]}
         material={mats.frame}
         castShadow
@@ -95,7 +98,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
       <RB
         args={[w, h, plate * 2]}
         radius={0.44}
-        smoothness={5}
+        smoothness={SM(5)}
         position={[x, y, z]}
         material={mats.frame}
         castShadow
@@ -104,7 +107,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
       <RB
         args={[w, h, plate * 2]}
         radius={Math.min(w, h) / 2 - 0.02}
-        smoothness={6}
+        smoothness={SM(6)}
         position={[x, y, z]}
         material={mats.frame}
         castShadow
@@ -113,7 +116,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
       <RB
         args={[w, h, plate * 2]}
         radius={layout === 'block' && model.id === 'fold-1' ? 0.36 : 0.3}
-        smoothness={5}
+        smoothness={SM(5)}
         position={[x, y, z]}
         material={mats.frame}
         castShadow
@@ -135,7 +138,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
         <group key={i} position={[x, ly, lensZ]}>
           {layout === 'rings' && (
             <mesh material={mats.ringTextured} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.05]}>
-              <cylinderGeometry args={[0.56, 0.56, 0.06, 48]} />
+              <cylinderGeometry args={[0.56, 0.56, 0.06, SEG.ringShell]} />
             </mesh>
           )}
           <Lens
@@ -171,7 +174,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
         position={[x + (layout === 'ultra' ? 0.72 : w / 2 + 0.3), y - 0.72, zFace - 0.004]}
         material={mats.dark}
       >
-        <cylinderGeometry args={[0.06, 0.06, 0.05, 20]} />
+        <cylinderGeometry args={[0.06, 0.06, 0.05, SEG.dot]} />
       </mesh>
     </group>
   );
@@ -189,10 +192,10 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
 
   const geo = useMemo(
     () => ({
-      lensRing: new THREE.CylinderGeometry(0.4, 0.4, 0.09, 48, 1, false),
-      lensRingInner: new THREE.CylinderGeometry(0.32, 0.34, 0.045, 48, 1, false),
-      lensRim: new THREE.CylinderGeometry(0.28, 0.3, 0.07, 48, 1, false),
-      lensGlass: new THREE.SphereGeometry(0.34, 40, 20, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      lensRing: new THREE.CylinderGeometry(0.4, 0.4, 0.09, SEG.lensCover, 1, false),
+      lensRingInner: new THREE.CylinderGeometry(0.32, 0.34, 0.045, SEG.lensCover, 1, false),
+      lensRim: new THREE.CylinderGeometry(0.28, 0.3, 0.07, SEG.lensCover, 1, false),
+      lensGlass: new THREE.SphereGeometry(0.34, SEG.lensCoverGlass[0], SEG.lensCoverGlass[1], 0, Math.PI * 2, 0, Math.PI * 0.5),
     }),
     []
   );
@@ -222,7 +225,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
         <RB
           args={[w + band * 2, h + band * 2, 0.1]}
           radius={0.28}
-          smoothness={4}
+          smoothness={SM(4)}
           position={[0, 0, zOut - 0.028]}
           material={mats.bezel}
         />
@@ -244,7 +247,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
         <RB
           args={[3.05, 1.42, 0.2]}
           radius={0.34}
-          smoothness={5}
+          smoothness={SM(5)}
           position={[camX, yTop, zOut - 0.05]}
           material={mats.frame}
           castShadow
@@ -270,7 +273,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
         <RB
           args={[width - 0.5, bandH, 0.11]}
           radius={0.34}
-          smoothness={4}
+          smoothness={SM(4)}
           position={[0, yTop + 0.28, zOut - 0.03]}
           material={mats.bezel}
         />
@@ -308,7 +311,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
       <RB
         args={[3.05, 1.5, 0.06]}
         radius={0.4}
-        smoothness={4}
+        smoothness={SM(4)}
         position={[-width * 0.24, yTop + 0.05, zOut - 0.05]}
         material={mats.bezel}
       />

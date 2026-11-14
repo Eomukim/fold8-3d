@@ -6,6 +6,7 @@ import { EffectComposer, Bloom, SMAA, ToneMapping } from '@react-three/postproce
 import { ToneMappingMode } from 'postprocessing';
 import DeviceModel from './DeviceModel';
 import { CAMERA_PRESETS } from '../lib/models';
+import { PERF } from '../lib/perf';
 import { useShowcase } from '../store';
 
 /* ---------------- helpers ---------------- */
@@ -113,7 +114,7 @@ function AutoOrbit({ controls }) {
 
 /* ---------------- studio environment ---------------- */
 
-function Studio({ quality }) {
+function Studio() {
   return (
     <>
       <ambientLight intensity={0.22} />
@@ -122,7 +123,7 @@ function Studio({ quality }) {
       <directionalLight position={[-14, 5, -9]} intensity={0.55} color="#d6deff" />
       <pointLight position={[-9, -4, 8]} intensity={22} color="#6c7bff" distance={40} decay={2} />
 
-      <Environment resolution={quality === 'high' ? 256 : 128} frames={1}>
+      <Environment resolution={PERF.envRes} frames={1}>
         <color attach="background" args={['#05060a']} />
         <Lightformer form="rect" intensity={7} position={[9, 9, 9]} scale={[15, 15, 1]} target={[0, 0, 0]} />
         <Lightformer form="rect" intensity={4.2} position={[-14, 2, 2]} rotation={[0, Math.PI / 2, 0]} scale={[26, 3.4, 1]} />
@@ -193,16 +194,18 @@ function StageFloor({ y }) {
         <planeGeometry args={[46, 46]} />
         <meshBasicMaterial map={glow} transparent blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.75} />
       </mesh>
-      <ContactShadows
-        position={[0, y + 0.04, 0]}
-        scale={30}
-        resolution={1024}
-        blur={1.6}
-        far={12}
-        frames={1}
-        opacity={0.55}
-        color="#000206"
-      />
+      {PERF.contactShadow && (
+        <ContactShadows
+          position={[0, y + 0.04, 0]}
+          scale={30}
+          resolution={PERF.shadowRes}
+          blur={1.6}
+          far={12}
+          frames={1}
+          opacity={0.55}
+          color="#000206"
+        />
+      )}
     </group>
   );
 }
@@ -214,14 +217,13 @@ function SceneContents() {
   useEffect(() => {
     if (typeof window !== 'undefined') window.__controls = controls;
   }, [controls]);
-  const quality = useThree((s) => (s.viewport.width < 720 ? 'low' : 'high'));
   const model = useModel();
   const { vHalf } = metrics(model);
   const floorY = -vHalf - 0.1;
 
   return (
     <>
-      <Studio quality={quality} />
+      <Studio />
       <StageFloor y={floorY} />
       <group position={[0, 0, 0]}>
         <DeviceModel key={model.id} model={model} />
@@ -250,10 +252,7 @@ export default function Stage() {
     return () => cancelAnimationFrame(id);
   }, []);
 
-  const dpr = useMemo(() => {
-    if (typeof window === 'undefined') return [1, 1.6];
-    return window.innerWidth < 720 ? [1, 1.6] : [1, 2];
-  }, []);
+  const dpr = PERF.dpr;
 
   return (
     <Canvas
@@ -263,7 +262,9 @@ export default function Stage() {
         antialias: true,
         alpha: false,
         powerPreference: 'high-performance',
-        toneMapping: THREE.NoToneMapping,
+        // with the composer the tone mapping happens in a final pass;
+        // without it (phones) the renderer applies ACES directly
+        toneMapping: PERF.postFx ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping,
         toneMappingExposure: 1.08,
       }}
       camera={{ position: [26, 9, 48], fov: 27, near: 0.5, far: 300 }}
@@ -271,6 +272,7 @@ export default function Stage() {
         gl.setClearColor('#05060a');
         window.__scene = scene;
         window.__cam = camera;
+        window.__gl = gl;
         requestAnimationFrame(() => {
           requestAnimationFrame(() => window.dispatchEvent(new Event('foldable:ready')));
         });
@@ -279,11 +281,13 @@ export default function Stage() {
     >
       <Suspense fallback={null}>
         {ready && <SceneContents />}
-        <EffectComposer multisampling={0} enableNormalPass={false}>
-          <SMAA />
-          <Bloom intensity={0.42} luminanceThreshold={0.9} luminanceSmoothing={0.12} mipmapBlur radius={0.28} />
-          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        </EffectComposer>
+        {PERF.postFx && (
+          <EffectComposer multisampling={0} enableNormalPass={false}>
+            <SMAA />
+            <Bloom intensity={0.42} luminanceThreshold={0.9} luminanceSmoothing={0.12} mipmapBlur radius={0.28} />
+            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+          </EffectComposer>
+        )}
       </Suspense>
     </Canvas>
   );

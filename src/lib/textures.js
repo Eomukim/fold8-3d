@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PERF } from './perf';
 
 const FONT =
   'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif';
@@ -149,9 +150,13 @@ function statusBar(ctx, W, H, u, color, fs = 1) {
 
 /* ---------- inner (main) display ---------- */
 
+/* Display canvas resolution scale — phones don't need a 1400px canvas
+   for a panel that is a few hundred CSS pixels wide on screen. */
+const TEX_SCALE = PERF.tier === 'low' ? 0.66 : 1;
+
 function drawInner(model) {
   const [rw, rh] = model.main.res;
-  const W = 1400;
+  const W = Math.round(1400 * TEX_SCALE);
   const H = Math.round((W * rh) / rw);
   const u = W / 1400;
   // taller panels (clamshells) need a slightly larger type scale to stay legible
@@ -362,7 +367,7 @@ function drawInner(model) {
 function drawCover(model) {
   const kind = model.cover.kind;
   const [rw, rh] = model.cover.res;
-  const W = 700;
+  const W = Math.round(700 * TEX_SCALE);
   const H = Math.round((W * rh) / rw);
   const u = Math.min(W, H) / 700;
   const c = document.createElement('canvas');
@@ -591,7 +596,7 @@ function drawEngrave(text) {
 
 /* ---------- material maps ---------- */
 
-function drawBrushedRough(size = 512) {
+function drawBrushedRough(size = PERF.tier === 'low' ? 256 : 512) {
   const c = document.createElement('canvas');
   c.width = size;
   c.height = size;
@@ -611,7 +616,7 @@ function drawBrushedRough(size = 512) {
   return c;
 }
 
-function drawMicroNoise(size = 256) {
+function drawMicroNoise(size = PERF.tier === 'low' ? 128 : 256) {
   const c = document.createElement('canvas');
   c.width = size;
   c.height = size;
@@ -628,7 +633,7 @@ function drawMicroNoise(size = 256) {
   return c;
 }
 
-function drawConcentric(size = 256) {
+function drawConcentric(size = PERF.tier === 'low' ? 128 : 256) {
   const c = document.createElement('canvas');
   c.width = size;
   c.height = size;
@@ -651,7 +656,7 @@ function drawConcentric(size = 256) {
 
 const cache = new Map();
 
-function tex(canvas, { srgb = true, repeat = null, aniso = 8 } = {}) {
+function tex(canvas, { srgb = true, repeat = null, aniso = PERF.aniso } = {}) {
   const t = new THREE.CanvasTexture(canvas);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   if (repeat) {
@@ -670,27 +675,29 @@ function memo(key, make) {
 }
 
 export function innerDisplayTexture(model) {
-  return memo(`inner:${model.id}`, () => tex(drawInner(model), { aniso: 8 }));
+  return memo(`inner:${model.id}`, () => tex(drawInner(model)));
 }
 
 export function coverDisplayTexture(model) {
-  return memo(`cover:${model.id}`, () => tex(drawCover(model), { aniso: 8 }));
+  return memo(`cover:${model.id}`, () => tex(drawCover(model)));
 }
 
 export function engraveTexture(text) {
-  return memo(`etch:${text}`, () => tex(drawEngrave(text), { aniso: 4 }));
+  return memo(`etch:${text}`, () => tex(drawEngrave(text), { aniso: Math.min(4, PERF.aniso) }));
 }
 
 export function brushedRoughnessTexture() {
   return memo('brushed', () =>
-    tex(drawBrushedRough(), { srgb: false, repeat: [2, 3], aniso: 4 })
+    tex(drawBrushedRough(), { srgb: false, repeat: [2, 3], aniso: Math.min(4, PERF.aniso) })
   );
 }
 
 export function microRoughnessTexture() {
-  return memo('micro', () => tex(drawMicroNoise(), { srgb: false, repeat: [4, 4], aniso: 4 }));
+  return memo('micro', () =>
+    tex(drawMicroNoise(), { srgb: false, repeat: [4, 4], aniso: Math.min(4, PERF.aniso) })
+  );
 }
 
 export function concentricTexture() {
-  return memo('concentric', () => tex(drawConcentric(), { srgb: false, aniso: 4 }));
+  return memo('concentric', () => tex(drawConcentric(), { srgb: false, aniso: Math.min(4, PERF.aniso) }));
 }

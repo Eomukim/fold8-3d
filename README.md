@@ -35,7 +35,7 @@
 ## 스택
 
 React 19 + Vite 7 + three 0.180 + `@react-three/fiber` 9 + drei 10 + postprocessing.
-PMREM 스튜디오 환경(Lightformer 9개, 네트워크 없음), ACES 톤매핑, Bloom + SMAA, ContactShadows.
+PMREM 스튜디오 환경(Lightformer 9개, 네트워크 없음), ACES 톤매핑. 데스크톱은 Bloom + SMAA + ContactShadows 포스트패스, 모바일은 포스트패스 없이 단일 패스로 그립니다.
 
 ```
 src/lib/models.js      세대별 제원·색상·카메라·주름 데이터
@@ -43,7 +43,24 @@ src/lib/textures.js    캔버스로 그리는 메인/커버 디스플레이와 �
 src/scene/DeviceModel.jsx  파라미터 기반 기기 생성(북/클램셸)
 src/scene/parts.jsx    카메라 아일랜드 · 플립 커버 클러스터
 src/ui/HUD.jsx         시리즈/세대 선택, 제원, 접힘 슬라이더, 컬러, 카메라 프리셋
+src/lib/perf.js        화면 크기·포인터로 고르는 렌더 예산(데스크톱 / 모바일)
 ```
+
+## 성능 — 데스크톱 / 모바일 두 단계
+
+같은 모델·재질·조명을 쓰되 GPU 예산만 다르게 잡습니다(`src/lib/perf.js`). 터치 포인터이거나 폭이 좁으면 모바일 단계입니다. `?perf=low` / `?perf=high`로 강제할 수 있습니다.
+
+| | 데스크톱 | 모바일 |
+| --- | --- | --- |
+| 픽셀 비율 | 최대 2.0 | 최대 1.25 |
+| 포스트패스 | SMAA + Bloom + ACES | 없음 (캔버스 MSAA + 렌더러 ACES) |
+| 환경맵 | PMREM 256 | 128 |
+| 화면 텍스처 | 1400px / 700px | 약 0.66배 |
+| 곡선 분할 | 24~56 | 8~32 |
+| 접지 그림자 | ContactShadows 1024 | 바닥 자체 그라디언트 |
+| 유리 패널 | `backdrop-filter` | 불투명 유리(합성 비용 제거) |
+
+접힘 슬라이더는 프레임마다 React를 다시 그리지 않고 Three 회전과 DOM 판독값만 갱신합니다. 기기 형상·재질·화면 아트는 두 단계에서 동일합니다.
 
 ## 개발 / 빌드
 

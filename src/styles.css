@@ -866,3 +866,23 @@ button {
     display: none;
   }
 }
+
+/* ---------------------------- touch / phone ----------------------------
+   A 26px backdrop blur over a live WebGL canvas has to be recomposited on
+   every render and is one of the heaviest costs on a phone.  Touch devices
+   get a denser glass panel instead, which reads the same over the studio's
+   near-black backdrop. */
+@media (pointer: coarse) {
+  .dock {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(12, 15, 22, 0.82);
+  }
+
+  .nav,
+  .spec-list li {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(11, 13, 19, 0.86);
+  }
+}

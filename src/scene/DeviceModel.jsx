@@ -13,6 +13,7 @@ import {
 } from '../lib/textures';
 import { useShowcase } from '../store';
 import { foldBus } from '../lib/foldBus';
+import { SEG } from '../lib/perf';
 import { CameraIsland, CoverCluster } from './parts';
 
 /* ------------------------------------------------------------------ */
@@ -237,12 +238,12 @@ function useGeometry(model) {
       dispH,
       coverW,
       coverH,
-      fixedBody: extrudeChamfered(fixedShape, T, bev, 20),
-      movingBody: extrudeChamfered(movingShape, T, bev, 20),
-      fixedBack: extrudeChamfered(backShape(1), 0.03, 0.008, 20),
-      movingBack: extrudeChamfered(backShape(-1), 0.03, 0.008, 20),
-      fixedPlate: extrudeChamfered(plateShape(1), 0.012, 0.004, 16),
-      movingPlate: extrudeChamfered(plateShape(-1), 0.012, 0.004, 16),
+      fixedBody: extrudeChamfered(fixedShape, T, bev, SEG.curve),
+      movingBody: extrudeChamfered(movingShape, T, bev, SEG.curve),
+      fixedBack: extrudeChamfered(backShape(1), 0.03, 0.008, SEG.curve),
+      movingBack: extrudeChamfered(backShape(-1), 0.03, 0.008, SEG.curve),
+      fixedPlate: extrudeChamfered(plateShape(1), 0.012, 0.004, SEG.plate),
+      movingPlate: extrudeChamfered(plateShape(-1), 0.012, 0.004, SEG.plate),
       fixedScreen,
       movingScreen,
       coverScreen: splitScreenPlane(coverW, coverH, 0, 1),
@@ -254,14 +255,14 @@ function useGeometry(model) {
         0.03
       ),
       engravePlate: new THREE.PlaneGeometry(Math.min(3.2, across * 0.28), 0.62),
-      spindle: new THREE.CylinderGeometry(1, 1, 1, 64, 1, false),
+      spindle: new THREE.CylinderGeometry(1, 1, 1, SEG.lens, 1, false),
       /* spine cover: sector around the fold's outward direction, its rims
          tucked inside the body so nothing pokes through the display */
-      barrel: new THREE.CylinderGeometry(1, 1, 1, 48, 1, false, Math.PI - 1.22, 2.44),
-      barrelBand: new THREE.CylinderGeometry(1.004, 1.004, 1, 32, 1, true, Math.PI - 1.22, 2.44),
-      knuckle: new THREE.TorusGeometry(1, 0.13, 10, 48),
-      speakerHole: new THREE.CylinderGeometry(0.024, 0.024, 0.09, 10),
-      punch: new THREE.SphereGeometry(1, 24, 16),
+      barrel: new THREE.CylinderGeometry(1, 1, 1, SEG.barrel, 1, false, Math.PI - 1.22, 2.44),
+      barrelBand: new THREE.CylinderGeometry(1.004, 1.004, 1, SEG.band, 1, true, Math.PI - 1.22, 2.44),
+      knuckle: new THREE.TorusGeometry(1, 0.13, SEG.knuckle[0], SEG.knuckle[1]),
+      speakerHole: new THREE.CylinderGeometry(0.024, 0.024, 0.09, SEG.hole),
+      punch: new THREE.SphereGeometry(1, SEG.punch[0], SEG.punch[1]),
     };
   }, [model]);
 }
@@ -274,12 +275,13 @@ function Buttons({ mats, T, sideX, across, form, base }) {
   const x = sideX - 0.03;
   const len = Math.min(2.0, across * 0.14);
   const y0 = base ?? across * 0.22;
+  const sm = Math.max(2, Math.round(4 * SEG.smooth));
   return (
     <group>
       <RB
         args={[0.1, len, T * 0.55]}
         radius={0.04}
-        smoothness={4}
+        smoothness={sm}
         position={[x, y0, 0]}
         material={mats.ring}
         castShadow
@@ -287,7 +289,7 @@ function Buttons({ mats, T, sideX, across, form, base }) {
       <RB
         args={[0.1, len * 0.6, T * 0.55]}
         radius={0.038}
-        smoothness={4}
+        smoothness={sm}
         position={[x, y0 - len * 0.95, 0]}
         material={mats.ring}
         castShadow
@@ -313,14 +315,14 @@ function BottomEdge({ mats, geos, T, x, y, width }) {
       <RB
         args={[0.92, 0.09, T * 0.42]}
         radius={0.06}
-        smoothness={3}
+        smoothness={Math.max(2, Math.round(3 * SEG.smooth))}
         position={[x, y + 0.005, 0]}
         material={mats.dark}
       />
       <RB
         args={[1.12, 0.045, T * 0.5]}
         radius={0.07}
-        smoothness={3}
+        smoothness={Math.max(2, Math.round(3 * SEG.smooth))}
         position={[x, y + 0.028, 0]}
         material={mats.ring}
       />
@@ -335,7 +337,7 @@ function BottomEdge({ mats, geos, T, x, y, width }) {
       ))}
       {/* mic */}
       <mesh position={[x - 0.72, y + 0.01, 0]} material={mats.dark}>
-        <cylinderGeometry args={[0.028, 0.028, 0.06, 10]} />
+        <cylinderGeometry args={[0.028, 0.028, 0.06, SEG.mic]} />
       </mesh>
     </group>
   );
@@ -442,9 +444,11 @@ export default function DeviceModel({ model }) {
     }
 
     const on = s.screensOn ? 1 : 0.035;
-    const k2 = THREE.MathUtils.damp(mats.inner.color.r || 1, on, 9, d);
-    mats.inner.color.setScalar(k2);
-    mats.cover.color.setScalar(k2);
+    if (Math.abs(mats.inner.color.r - on) > 0.002) {
+      const k2 = THREE.MathUtils.damp(mats.inner.color.r || 1, on, 9, d);
+      mats.inner.color.setScalar(k2);
+      mats.cover.color.setScalar(k2);
+    }
   });
 
   const hingeLength = across * 0.925;
@@ -464,11 +468,8 @@ export default function DeviceModel({ model }) {
         />
           {/* inner selfie camera — sits on the fixed half's display */}
           {model.innerCam === 'punch' && form === 'book' && (
-            <mesh
-              material={mats.bezel}
-              position={[dispW * 0.5 - 0.6, dispH / 2 - 0.42, screenZ + 0.03]}
-            >
-              <sphereGeometry args={[0.07, 18, 12]} />
+            <mesh material={mats.bezel} position={[dispW * 0.5 - 0.6, dispH / 2 - 0.42, screenZ + 0.03]}>
+              <sphereGeometry args={[0.07, SEG.punch[0], SEG.punch[1]]} />
             </mesh>
           )}
           {model.innerCam === 'punch' && form === 'flip' && (
@@ -476,7 +477,7 @@ export default function DeviceModel({ model }) {
               material={mats.bezel}
               position={[0, dispH / 2 - 0.42, screenZ + 0.03]}
             >
-              <sphereGeometry args={[0.07, 18, 12]} />
+              <sphereGeometry args={[0.07, SEG.punch[0], SEG.punch[1]]} />
             </mesh>
           )}
           {model.innerCam === 'udc' && (
@@ -484,14 +485,14 @@ export default function DeviceModel({ model }) {
               material={mats.bezel}
               position={[form === 'book' ? dispW * 0.5 - 0.6 : 0, dispH / 2 - 0.42, screenZ + 0.006]}
             >
-              <circleGeometry args={[0.055, 20]} />
+              <circleGeometry args={[0.055, SEG.circle]} />
             </mesh>
           )}
           {model.innerCam === 'notch' && (
             <RB
               args={[2.6, 0.78, 0.05]}
               radius={0.32}
-              smoothness={5}
+              smoothness={Math.max(2, Math.round(5 * SEG.smooth))}
               position={[dispW * 0.5 - 1.32, dispH / 2 - 0.4, screenZ + 0.006]}
               material={mats.bezelFlat}
             />
