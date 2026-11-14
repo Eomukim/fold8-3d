@@ -190,9 +190,6 @@ function SceneContents() {
   );
 }
 
-const fxOff =
-  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fx') === 'off';
-
 export default function Stage() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -227,13 +224,11 @@ export default function Stage() {
     >
       <Suspense fallback={null}>
         {ready && <SceneContents />}
-        {!fxOff && (
-          <EffectComposer multisampling={0} enableNormalPass={false}>
+        <EffectComposer multisampling={0} enableNormalPass={false}>
             <SMAA />
             <Bloom intensity={0.42} luminanceThreshold={0.9} luminanceSmoothing={0.12} mipmapBlur radius={0.28} />
-            <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-          </EffectComposer>
-        )}
+          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+        </EffectComposer>
       </Suspense>
     </Canvas>
   );

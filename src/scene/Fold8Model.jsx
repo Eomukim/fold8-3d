@@ -22,9 +22,6 @@ const R_IN = DIM.hingeR;
 const SCREEN_Z = DIM.inner.z;
 const SCREEN_HW = DIM.inner.w / 2; // half of the inner display width
 const SCREEN_HH = DIM.inner.h / 2;
-const Q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-const PLAIN = Q.get('plain') === '1';
-const NOGLASS = Q.get('glass') === 'off';
 
 /* ------------------------------------------------------------------ */
 /*  geometry                                                          */
@@ -433,7 +430,7 @@ export default function Fold8Model() {
         <mesh geometry={geos.rightBody} material={mats.frame} castShadow receiveShadow />
         <mesh geometry={geos.rightBack} material={mats.back} position={[0, 0, -T / 2 + 0.01]} />
         <mesh geometry={geos.rightScreen} material={mats.inner} position={[SCREEN_HW / 2, 0, SCREEN_Z]} />
-        {!NOGLASS && <ScreenGlass geo={geos.rightScreen} side={1} mats={mats} />}
+        <ScreenGlass geo={geos.rightScreen} side={1} mats={mats} />
         <BezelLip side={1} mats={mats} />
         <CameraIsland mats={mats} geos={geos} />
         <Buttons mats={mats} />
@@ -454,7 +451,7 @@ export default function Fold8Model() {
           <mesh geometry={geos.leftBody} material={mats.frame} castShadow receiveShadow />
           <mesh geometry={geos.leftBack} material={mats.back} position={[0, 0, -T / 2 + 0.01]} />
           <mesh geometry={geos.leftScreen} material={mats.inner} position={[-SCREEN_HW / 2, 0, SCREEN_Z]} />
-          {!NOGLASS && <ScreenGlass geo={geos.leftScreen} side={-1} mats={mats} />}
+          <ScreenGlass geo={geos.leftScreen} side={-1} mats={mats} />
           <BezelLip side={-1} mats={mats} />
           {/* cover display, on the outer face */}
           <mesh

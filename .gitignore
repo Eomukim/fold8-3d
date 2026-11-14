@@ -4,3 +4,6 @@ dist-ssr
 .DS_Store
 *.log
 .vite
+
+# dev verification scripts
+tools/

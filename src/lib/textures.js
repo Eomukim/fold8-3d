@@ -668,11 +668,7 @@ function tex(canvas, { srgb = true, repeat = null, aniso = 8 } = {}) {
 }
 
 export function innerDisplayTexture() {
-  if (!cache.inner) {
-    const canvas = drawInnerDisplay();
-    cache.inner = tex(canvas, { aniso: 8 });
-    if (typeof window !== 'undefined') window.__fold8Tex = { ...(window.__fold8Tex || {}), inner: canvas };
-  }
+  if (!cache.inner) cache.inner = tex(drawInnerDisplay(), { aniso: 8 });
   return cache.inner;
 }
 
