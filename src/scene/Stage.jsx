@@ -156,11 +156,36 @@ function StageFloor({ y }) {
     return t;
   }, []);
 
+  // soft-edged floor: fades out before its own far edge so no horizon line shows
+  const floorAlpha = useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 256;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.45, 'rgba(255,255,255,0.92)');
+    g.addColorStop(0.72, 'rgba(255,255,255,0.35)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+    const t = new THREE.CanvasTexture(c);
+    return t;
+  }, []);
+
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} receiveShadow>
-        <circleGeometry args={[420, 96]} />
-        <meshStandardMaterial color="#0a0b11" roughness={0.9} metalness={0.15} envMapIntensity={0.35} />
+        <planeGeometry args={[240, 240]} />
+        <meshStandardMaterial
+          color="#0a0b11"
+          roughness={0.9}
+          metalness={0.15}
+          envMapIntensity={0.35}
+          transparent
+          alphaMap={floorAlpha}
+          depthWrite={false}
+        />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y + 0.02, 0]}>
         <planeGeometry args={[46, 46]} />
