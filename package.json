@@ -1,9 +1,9 @@
 {
-  "name": "fold8-3d",
+  "name": "foldablesimulator",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Galaxy Z Fold 8 — interactive 3D product showcase",
+  "description": "FoldableSimulator — Samsung Galaxy Z Fold 1–8 Ultra & Z Flip 1–8 interactive 3D",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

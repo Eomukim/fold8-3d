@@ -4,9 +4,41 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Environment, Lightformer, ContactShadows } from '@react-three/drei';
 import { EffectComposer, Bloom, SMAA, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import Fold8Model from './Fold8Model';
-import { CAMERA_PRESETS } from '../lib/dims';
+import DeviceModel from './DeviceModel';
+import { CAMERA_PRESETS } from '../lib/models';
 import { useShowcase } from '../store';
+
+/* ---------------- helpers ---------------- */
+
+function useModel() {
+  const series = useShowcase((s) => s.series);
+  const modelId = useShowcase((s) => s.modelId);
+  return useShowcase.getState().model();
+}
+
+function metrics(model) {
+  const vHalf = model.form === 'book' ? model.across / 2 : model.half;
+  const vFull = Math.max(model.form === 'book' ? model.across : model.half * 2);
+  const wFull = Math.max(model.form === 'book' ? model.half * 2 : model.across);
+  return { vHalf, vFull, wFull, size: Math.max(vFull, wFull) };
+}
+
+function presetTarget(preset, model) {
+  const T = model.dims.tOpen / 2;
+  const { vHalf } = metrics(model);
+  if (preset === 'hinge') return new THREE.Vector3(0, 0, -T * 0.2);
+  if (preset === 'camera') {
+    return model.form === 'book'
+      ? new THREE.Vector3(model.cam.x, model.cam.y - vHalf * 0.06, -T)
+      : new THREE.Vector3(model.cover.w * 0.22, model.half * 0.12, -T);
+  }
+  if (preset === 'cover') {
+    if (model.form === 'book') return new THREE.Vector3(-model.half / 2, 0, -T);
+    const closed = useShowcase.getState().foldTarget < 45;
+    return new THREE.Vector3(0, 0, closed ? T : -T);
+  }
+  return new THREE.Vector3(0, -vHalf * 0.30, 0);
+}
 
 /* ---------------- camera preset transitions ---------------- */
 
@@ -14,35 +46,30 @@ function CameraRig({ controls }) {
   const { camera, size } = useThree();
   const preset = useShowcase((s) => s.camera);
   const seq = useShowcase((s) => s.cameraSeq);
-
+  const model = useModel();
   const anim = useRef(null);
 
-  // Pull the camera back on narrow (portrait) screens so the whole device fits.
-  const fitScale = useMemo(() => {
+  const fit = useMemo(() => {
+    const { size: modelSize } = metrics(model);
     const aspect = size.width / Math.max(1, size.height);
-    const fov = THREE.MathUtils.degToRad(camera.fov || 27);
-    const tan = Math.tan(fov / 2);
-    const needV = (10 * 1.18) / tan;
-    const needH = (7.6 * 1.12) / (tan * aspect);
-    const ov = CAMERA_PRESETS.overview;
-    const base = Math.hypot(ov.pos[0] - ov.target[0], ov.pos[1] - ov.target[1], ov.pos[2] - ov.target[2]);
-    return Math.min(2.6, Math.max(1, Math.max(needV, needH) / base));
-  }, [size.width, size.height, camera.fov]);
+    const boost = aspect < 1.35 ? Math.min(1.75, 1.35 / aspect) : 1;
+    return (modelSize / 14.2) * boost;
+  }, [model, size.width, size.height]);
 
   useEffect(() => {
-    const p = CAMERA_PRESETS[preset] ?? CAMERA_PRESETS.overview;
-    const target = new THREE.Vector3(...p.target);
-    const pos = new THREE.Vector3(...p.pos);
-    const dir = pos.clone().sub(target).multiplyScalar(fitScale);
+    const isFlipFront = model.form === 'flip' && preset === 'cover';
+    const p = (isFlipFront ? CAMERA_PRESETS.coverFront : CAMERA_PRESETS[preset]) ?? CAMERA_PRESETS.overview;
+    const target = presetTarget(preset, model);
+    const pos = target.clone().add(new THREE.Vector3(...p.offset).multiplyScalar(fit));
     anim.current = {
       t: 0,
       fromPos: camera.position.clone(),
       fromTarget: controls ? controls.target.clone() : new THREE.Vector3(),
-      toPos: target.clone().add(dir),
-      toTarget: new THREE.Vector3(target.x, target.y * fitScale, target.z),
+      toPos: pos,
+      toTarget: target,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset, seq, fitScale]);
+  }, [preset, seq, fit, model.id]);
 
   useEffect(() => {
     if (!controls) return undefined;
@@ -56,7 +83,7 @@ function CameraRig({ controls }) {
   useFrame((_, dt) => {
     if (!anim.current || !controls) return;
     const a = anim.current;
-    a.t = Math.min(1, a.t + dt / 1.15);
+    a.t = typeof window !== 'undefined' && window.__snap ? 1 : Math.min(1, a.t + dt / 1.15);
     const e = a.t < 0.5 ? 2 * a.t * a.t : 1 - Math.pow(-2 * a.t + 2, 2) / 2;
     camera.position.lerpVectors(a.fromPos, a.toPos, e);
     controls.target.lerpVectors(a.fromTarget, a.toTarget, e);
@@ -95,19 +122,13 @@ function Studio({ quality }) {
 
       <Environment resolution={quality === 'high' ? 256 : 128} frames={1}>
         <color attach="background" args={['#05060a']} />
-        {/* key softbox, upper right */}
         <Lightformer form="rect" intensity={7} position={[9, 9, 9]} scale={[15, 15, 1]} target={[0, 0, 0]} />
-        {/* long rim strips */}
         <Lightformer form="rect" intensity={4.2} position={[-14, 2, 2]} rotation={[0, Math.PI / 2, 0]} scale={[26, 3.4, 1]} />
         <Lightformer form="rect" intensity={3.4} position={[14, -1, -4]} rotation={[0, -Math.PI / 2, 0]} scale={[22, 2.8, 1]} />
-        {/* overhead linear */}
         <Lightformer form="rect" intensity={4.4} position={[0, 15, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[18, 6, 1]} />
-        {/* back fill */}
         <Lightformer form="rect" intensity={1.4} position={[0, 3, -15]} scale={[16, 16, 1]} />
-        {/* front fill so the metal frame always catches a highlight */}
         <Lightformer form="rect" intensity={3} position={[-6, 3, 13]} scale={[9, 12, 1]} target={[0, 0, 0]} />
         <Lightformer form="rect" intensity={2.2} position={[7, -5, 11]} scale={[7, 9, 1]} target={[0, 0, 0]} />
-        {/* cool accent */}
         <Lightformer form="circle" intensity={2.2} position={[-8, -6, 6]} scale={[6, 6, 1]} color="#7c6cff" />
         <Lightformer form="circle" intensity={1.6} position={[7, 6, -8]} scale={[5, 5, 1]} color="#5eead4" />
       </Environment>
@@ -117,7 +138,7 @@ function Studio({ quality }) {
 
 /* ---------------- stage floor ---------------- */
 
-function StageFloor() {
+function StageFloor({ y }) {
   const glow = useMemo(() => {
     const c = document.createElement('canvas');
     c.width = 512;
@@ -137,16 +158,16 @@ function StageFloor() {
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -10.16, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} receiveShadow>
         <circleGeometry args={[90, 64]} />
         <meshStandardMaterial color="#0a0b11" roughness={0.9} metalness={0.15} envMapIntensity={0.35} />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -10.14, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y + 0.02, 0]}>
         <planeGeometry args={[46, 46]} />
         <meshBasicMaterial map={glow} transparent blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.75} />
       </mesh>
       <ContactShadows
-        position={[0, -10.1, 0]}
+        position={[0, y + 0.04, 0]}
         scale={30}
         resolution={1024}
         blur={1.6}
@@ -163,22 +184,24 @@ function StageFloor() {
 
 function SceneContents() {
   const controls = useThree((s) => s.controls);
-  const quality = useThree((s) => s.viewport.width < 720 ? 'low' : 'high');
+  const quality = useThree((s) => (s.viewport.width < 720 ? 'low' : 'high'));
+  const model = useModel();
+  const { vHalf } = metrics(model);
+  const floorY = -vHalf - 0.1;
 
   return (
     <>
-      <fog attach="fog" args={['#05060a', 46, 96]} />
       <Studio quality={quality} />
-      <StageFloor />
+      <StageFloor y={floorY} />
       <group position={[0, 0, 0]}>
-        <Fold8Model />
+        <DeviceModel key={model.id} model={model} />
       </group>
       <OrbitControls
         makeDefault
         enablePan={false}
         enableDamping
         dampingFactor={0.07}
-        minDistance={8}
+        minDistance={3}
         maxDistance={160}
         minPolarAngle={Math.PI * 0.12}
         maxPolarAngle={Math.PI * 0.62}
@@ -213,11 +236,13 @@ export default function Stage() {
         toneMapping: THREE.NoToneMapping,
         toneMappingExposure: 1.08,
       }}
-      camera={{ position: CAMERA_PRESETS.overview.pos, fov: 27, near: 0.5, far: 300 }}
-      onCreated={({ gl }) => {
+      camera={{ position: [26, 9, 48], fov: 27, near: 0.5, far: 300 }}
+      onCreated={({ gl, scene, camera }) => {
         gl.setClearColor('#05060a');
+        window.__scene = scene;
+        window.__cam = camera;
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => window.dispatchEvent(new Event('fold8:ready')));
+          requestAnimationFrame(() => window.dispatchEvent(new Event('foldable:ready')));
         });
       }}
       style={{ position: 'absolute', inset: 0 }}
@@ -225,8 +250,8 @@ export default function Stage() {
       <Suspense fallback={null}>
         {ready && <SceneContents />}
         <EffectComposer multisampling={0} enableNormalPass={false}>
-            <SMAA />
-            <Bloom intensity={0.42} luminanceThreshold={0.9} luminanceSmoothing={0.12} mipmapBlur radius={0.28} />
+          <SMAA />
+          <Bloom intensity={0.42} luminanceThreshold={0.9} luminanceSmoothing={0.12} mipmapBlur radius={0.28} />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
         </EffectComposer>
       </Suspense>

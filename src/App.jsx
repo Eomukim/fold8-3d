@@ -21,10 +21,10 @@ export default function App() {
   useEffect(() => {
     setWebgl(supportsWebGL());
     const onReady = () => setReady(true);
-    window.addEventListener('fold8:ready', onReady);
+    window.addEventListener('foldable:ready', onReady);
     const fallback = setTimeout(onReady, 4500);
     return () => {
-      window.removeEventListener('fold8:ready', onReady);
+      window.removeEventListener('foldable:ready', onReady);
       clearTimeout(fallback);
     };
   }, []);
@@ -48,7 +48,7 @@ export default function App() {
       <div className={`loader ${ready ? 'done' : ''}`} aria-hidden={ready}>
         <div className="loader-inner">
           <div className="loader-mark" />
-          <span className="loader-text">GALAXY Z FOLD 8</span>
+          <span className="loader-text">FOLDABLE SIMULATOR</span>
         </div>
       </div>
     </div>

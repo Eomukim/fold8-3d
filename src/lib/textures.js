@@ -6,7 +6,7 @@ const FONT =
 /* ---------- small helpers ---------- */
 
 function rr(ctx, x, y, w, h, r) {
-  const rad = Math.min(r, w / 2, h / 2);
+  const rad = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
   ctx.beginPath();
   ctx.moveTo(x + rad, y);
   ctx.lineTo(x + w - rad, y);
@@ -20,6 +20,12 @@ function rr(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+function hexAlpha(hex, a) {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.replace(/(.)/g, '$1$1') : h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
 function glow(ctx, x, y, r, color, alpha) {
   const g = ctx.createRadialGradient(x, y, 0, x, y, r);
   g.addColorStop(0, hexAlpha(color, alpha));
@@ -29,24 +35,13 @@ function glow(ctx, x, y, r, color, alpha) {
   ctx.fillRect(x - r, y - r, r * 2, r * 2);
 }
 
-function hexAlpha(hex, a) {
-  const h = hex.replace('#', '');
-  const n = parseInt(h.length === 3 ? h.replace(/(.)/g, '$1$1') : h, 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return `rgba(${r},${g},${b},${a})`;
-}
-
-function grain(ctx, w, h, amount = 2400, alpha = 0.022) {
+function grain(ctx, w, h, amount = 2400, alpha = 0.02) {
   for (let i = 0; i < amount; i += 1) {
-    const v = Math.random();
-    ctx.fillStyle = `rgba(${v > 0.5 ? 255 : 0},${v > 0.5 ? 255 : 0},${v > 0.5 ? 255 : 0},${alpha})`;
+    const v = Math.random() > 0.5 ? 255 : 0;
+    ctx.fillStyle = `rgba(${v},${v},${v},${alpha})`;
     ctx.fillRect(Math.random() * w, Math.random() * h, 1.2, 1.2);
   }
 }
-
-/* ---------- glyphs ---------- */
 
 function glyph(ctx, kind, cx, cy, s, color) {
   ctx.save();
@@ -67,11 +62,6 @@ function glyph(ctx, kind, cx, cy, s, color) {
     case 'message':
       rr(ctx, cx - s * 0.34, cy - s * 0.28, s * 0.68, s * 0.48, s * 0.16);
       ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx - s * 0.12, cy + s * 0.2);
-      ctx.lineTo(cx - s * 0.14, cy + s * 0.34);
-      ctx.lineTo(cx + s * 0.04, cy + s * 0.2);
-      ctx.stroke();
       break;
     case 'camera':
       rr(ctx, cx - s * 0.34, cy - s * 0.22, s * 0.68, s * 0.46, s * 0.12);
@@ -80,15 +70,7 @@ function glyph(ctx, kind, cx, cy, s, color) {
       ctx.arc(cx, cy + s * 0.01, s * 0.13, 0, Math.PI * 2);
       ctx.stroke();
       break;
-    case 'wallet':
-      rr(ctx, cx - s * 0.33, cy - s * 0.22, s * 0.66, s * 0.44, s * 0.1);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx + s * 0.33, cy - s * 0.02);
-      ctx.lineTo(cx + s * 0.1, cy - s * 0.02);
-      ctx.stroke();
-      break;
-    case 'music':
+    case 'music': {
       ctx.beginPath();
       ctx.moveTo(cx - s * 0.06, cy + s * 0.2);
       ctx.lineTo(cx - s * 0.06, cy - s * 0.26);
@@ -99,36 +81,13 @@ function glyph(ctx, kind, cx, cy, s, color) {
       ctx.arc(cx - s * 0.16, cy + s * 0.2, s * 0.1, 0, Math.PI * 2);
       ctx.fill();
       break;
-    case 'map':
-      ctx.beginPath();
-      ctx.arc(cx, cy - s * 0.06, s * 0.2, Math.PI, Math.PI * 2.15);
-      ctx.lineTo(cx, cy + s * 0.32);
-      ctx.closePath();
-      ctx.stroke();
-      break;
-    case 'gear':
-      ctx.beginPath();
-      ctx.arc(cx, cy, s * 0.14, 0, Math.PI * 2);
-      ctx.stroke();
-      for (let i = 0; i < 6; i += 1) {
-        const a = (i / 6) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(a) * s * 0.18, cy + Math.sin(a) * s * 0.18);
-        ctx.lineTo(cx + Math.cos(a) * s * 0.3, cy + Math.sin(a) * s * 0.3);
-        ctx.stroke();
-      }
-      break;
+    }
     case 'gall':
       rr(ctx, cx - s * 0.3, cy - s * 0.3, s * 0.6, s * 0.6, s * 0.14);
       ctx.stroke();
       ctx.beginPath();
       ctx.arc(cx - s * 0.08, cy - s * 0.1, s * 0.07, 0, Math.PI * 2);
       ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(cx - s * 0.2, cy + s * 0.2);
-      ctx.lineTo(cx - s * 0.02, cy - s * 0.02);
-      ctx.lineTo(cx + s * 0.16, cy + s * 0.2);
-      ctx.stroke();
       break;
     default:
       break;
@@ -136,20 +95,76 @@ function glyph(ctx, kind, cx, cy, s, color) {
   ctx.restore();
 }
 
+function sun(ctx, x, y, r, color) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.62, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, r * 0.13);
+  for (let i = 0; i < 8; i += 1) {
+    const a = (i / 8) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a) * r * 0.82, y + Math.sin(a) * r * 0.82);
+    ctx.lineTo(x + Math.cos(a) * r * 1.1, y + Math.sin(a) * r * 1.1);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------- status bar ---------- */
+
+function statusBar(ctx, W, H, u, color, fs = 1) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = `600 ${Math.round(30 * u * fs)}px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.fillText('9:41', 48 * u, 60 * u);
+  const bx = W - 48 * u;
+  // battery
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 4 * u;
+  rr(ctx, bx - 46 * u, 42 * u, 44 * u, 22 * u, 6 * u);
+  ctx.stroke();
+  rr(ctx, bx - 41 * u, 46 * u, 26 * u, 14 * u, 3 * u);
+  ctx.fill();
+  rr(ctx, bx - 0.5 * u, 48 * u, 4 * u, 10 * u, 2 * u);
+  ctx.fill();
+  // wifi
+  ctx.lineWidth = 5 * u;
+  for (let i = 0; i < 2; i += 1) {
+    ctx.beginPath();
+    ctx.arc(bx - 108 * u, 58 * u, 8 * u + i * 9 * u, -Math.PI * 0.78, -Math.PI * 0.22);
+    ctx.stroke();
+  }
+  // signal
+  for (let i = 0; i < 4; i += 1) {
+    const h = 8 * u + i * 4.5 * u;
+    rr(ctx, bx - 168 * u + i * 12 * u, 62 * u - h, 8 * u, h, 2.5 * u);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 /* ---------- inner (main) display ---------- */
 
-function drawInnerDisplay() {
-  const W = 1680;
-  const H = 2240;
+function drawInner(model) {
+  const [rw, rh] = model.main.res;
+  const W = 1400;
+  const H = Math.round((W * rh) / rw);
+  const u = W / 1400;
+  // taller panels (clamshells) need a slightly larger type scale to stay legible
+  const fs = Math.max(1, Math.min(1.4, H / W / 1.75));
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const ctx = c.getContext('2d');
 
-  // base — deep AMOLED black with a cool lift toward the top
+  // base
   const bg = ctx.createLinearGradient(0, H * 0.05, W * 0.2, H);
   bg.addColorStop(0, '#070a12');
-  bg.addColorStop(0.4, '#05070d');
+  bg.addColorStop(0.42, '#05070d');
   bg.addColorStop(1, '#020308');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
@@ -161,135 +176,74 @@ function drawInnerDisplay() {
   ctx.fillStyle = top;
   ctx.fillRect(0, 0, W, H * 0.55);
 
-  // a single, crisp light trail across the panel
+  // light trail
   ctx.save();
   const trail = ctx.createLinearGradient(0, H * 0.3, W, H * 0.52);
   trail.addColorStop(0, 'rgba(150,170,255,0)');
-  trail.addColorStop(0.28, 'rgba(168,190,255,0.5)');
-  trail.addColorStop(0.52, 'rgba(120,235,225,0.55)');
-  trail.addColorStop(0.78, 'rgba(150,170,255,0.18)');
+  trail.addColorStop(0.28, 'rgba(168,190,255,0.42)');
+  trail.addColorStop(0.52, 'rgba(120,235,225,0.5)');
+  trail.addColorStop(0.78, 'rgba(150,170,255,0.16)');
   trail.addColorStop(1, 'rgba(150,170,255,0)');
   ctx.strokeStyle = trail;
-  ctx.lineWidth = 3.2;
-  ctx.shadowColor = 'rgba(140,170,255,0.55)';
-  ctx.shadowBlur = 26;
+  ctx.lineWidth = 3.2 * u;
+  ctx.shadowColor = 'rgba(140,170,255,0.5)';
+  ctx.shadowBlur = 26 * u;
   ctx.beginPath();
-  ctx.moveTo(-40, H * 0.47);
-  ctx.bezierCurveTo(W * 0.28, H * 0.3, W * 0.66, H * 0.56, W + 40, H * 0.36);
+  ctx.moveTo(-40, H * 0.45);
+  ctx.bezierCurveTo(W * 0.28, H * 0.3, W * 0.66, H * 0.54, W + 40, H * 0.35);
   ctx.stroke();
   ctx.restore();
 
-  // soft aura in the lower third, kept away from the clock
-  ctx.save();
+  // aura
   const aura = ctx.createRadialGradient(W * 0.52, H * 1.02, 0, W * 0.52, H * 1.02, W * 0.78);
-  aura.addColorStop(0, 'rgba(96,86,255,0.40)');
-  aura.addColorStop(0.4, 'rgba(60,60,190,0.14)');
+  aura.addColorStop(0, 'rgba(96,86,255,0.36)');
+  aura.addColorStop(0.4, 'rgba(60,60,190,0.13)');
   aura.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = aura;
   ctx.fillRect(0, H * 0.45, W, H * 0.55);
-  const aura2 = ctx.createRadialGradient(W * 0.9, H * 0.62, 0, W * 0.9, H * 0.62, W * 0.42);
-  aura2.addColorStop(0, 'rgba(20,190,185,0.14)');
-  aura2.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = aura2;
-  ctx.fillRect(0, H * 0.3, W, H * 0.7);
-  ctx.restore();
+  glow(ctx, W * 0.9, H * 0.6, W * 0.42, '#14beb9', 0.13);
 
-  // faint hairline grid
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-  ctx.lineWidth = 1;
-  for (let i = 1; i < 6; i += 1) {
-    ctx.beginPath();
-    ctx.moveTo(0, (H / 6) * i);
-    ctx.lineTo(W, (H / 6) * i);
-    ctx.stroke();
-  }
-  ctx.restore();
+  grain(ctx, W, H, 3200, 0.016);
 
-  grain(ctx, W, H, 4200, 0.018);
-  grain(ctx, W, H, 5200, 0.02);
+  // status bar (keep clear of the fold line and camera cut-outs)
+  statusBar(ctx, W, H, u, 'rgba(255,255,255,0.94)', fs);
 
-  /* --- status bar --- */
-  ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.94)';
-  ctx.font = `600 46px ${FONT}`;
-  ctx.textAlign = 'left';
-  ctx.fillText('9:41', 76, 96);
-  ctx.textAlign = 'right';
-  // signal bars
-  for (let i = 0; i < 4; i += 1) {
-    const h = 12 + i * 7;
-    rr(ctx, W - 300 + i * 17, 96 - h, 11, h, 3);
-    ctx.fill();
-  }
-  // wifi
-  ctx.strokeStyle = 'rgba(255,255,255,0.94)';
-  ctx.lineWidth = 7;
-  for (let i = 0; i < 3; i += 1) {
-    ctx.beginPath();
-    ctx.arc(W - 200, 100, 10 + i * 11, -Math.PI * 0.78, -Math.PI * 0.22);
-    ctx.stroke();
-  }
-  // battery
-  ctx.lineWidth = 5;
-  rr(ctx, W - 150, 66, 66, 34, 9);
-  ctx.stroke();
-  rr(ctx, W - 144, 72, 44, 22, 5);
-  ctx.fill();
-  rr(ctx, W - 80, 76, 6, 14, 3);
-  ctx.fill();
-  ctx.restore();
-
-  /* --- clock widget --- */
+  // clock
+  const clockY = H * 0.29;
   ctx.save();
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(255,255,255,0.97)';
-  ctx.font = `200 340px ${FONT}`;
-  ctx.fillText('9:41', 74, 700);
-
-  ctx.fillStyle = 'rgba(226,232,255,0.62)';
-  ctx.font = `400 54px ${FONT}`;
-  ctx.fillText('Saturday, November 14', 84, 800);
+  ctx.font = `200 ${Math.round(300 * u * fs)}px ${FONT}`;
+  ctx.fillText('9:41', 72 * u, clockY);
+  ctx.fillStyle = 'rgba(226,232,255,0.6)';
+  ctx.font = `400 ${Math.round(48 * u * fs)}px ${FONT}`;
+  ctx.fillText('Saturday, November 14', 80 * u, clockY + 76 * u);
+  ctx.restore();
 
   // weather chip
-  const chipY = 860;
-  rr(ctx, 84, chipY, 470, 132, 66);
+  const chipY = clockY + 116 * u;
+  ctx.save();
+  rr(ctx, 80 * u, chipY, 420 * u, 118 * u, 59 * u);
   ctx.fillStyle = 'rgba(255,255,255,0.075)';
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.12)';
   ctx.lineWidth = 2;
   ctx.stroke();
-  // sun
-  ctx.save();
-  ctx.translate(160, chipY + 66);
-  ctx.fillStyle = '#ffd479';
-  ctx.beginPath();
-  ctx.arc(0, 0, 25, 0, Math.PI * 2);
-  ctx.fill();
-  for (let i = 0; i < 8; i += 1) {
-    const a = (i / 8) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * 33, Math.sin(a) * 33);
-    ctx.lineTo(Math.cos(a) * 44, Math.sin(a) * 44);
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = '#ffd479';
-    ctx.stroke();
-  }
-  ctx.restore();
+  sun(ctx, 146 * u, chipY + 59 * u, 26 * u, '#ffd479');
   ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  ctx.font = `300 62px ${FONT}`;
-  ctx.fillText('18°', 232, chipY + 84);
+  ctx.font = `300 ${Math.round(56 * u * fs)}px ${FONT}`;
+  ctx.fillText('18°', 208 * u, chipY + 74 * u);
   ctx.fillStyle = 'rgba(226,232,255,0.55)';
-  ctx.font = `400 34px ${FONT}`;
-  ctx.fillText('Clear · Gangnam-gu', 232, chipY + 122);
+  ctx.font = `400 ${Math.round(30 * u * fs)}px ${FONT}`;
+  ctx.fillText('Clear · Gangnam', 208 * u, chipY + 108 * u);
   ctx.restore();
 
-  /* --- agenda card --- */
-  const cardY = 1090;
-  const cardH = 430;
+  // agenda card
+  const cardY = chipY + 168 * u;
+  const cardH = 380 * u;
   ctx.save();
-  rr(ctx, 74, cardY, W - 148, cardH, 54);
-  const cg = ctx.createLinearGradient(74, cardY, W - 74, cardY + cardH);
+  rr(ctx, 72 * u, cardY, W - 144 * u, cardH, 50 * u);
+  const cg = ctx.createLinearGradient(72 * u, cardY, W - 72 * u, cardY + cardH);
   cg.addColorStop(0, 'rgba(255,255,255,0.07)');
   cg.addColorStop(1, 'rgba(255,255,255,0.028)');
   ctx.fillStyle = cg;
@@ -298,34 +252,32 @@ function drawInnerDisplay() {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // accent bar
-  rr(ctx, 74 + 54, cardY + 60, 9, 52, 5);
+  rr(ctx, 126 * u, cardY + 52 * u, 8 * u, 46 * u, 4 * u);
   ctx.fillStyle = '#8b7bff';
   ctx.fill();
-
   ctx.fillStyle = 'rgba(255,255,255,0.72)';
-  ctx.font = `600 34px ${FONT}`;
-  ctx.fillText('UP NEXT', 74 + 84, cardY + 100);
+  ctx.font = `600 ${Math.round(30 * u * fs)}px ${FONT}`;
+  ctx.fillText('UP NEXT', 154 * u, cardY + 88 * u);
 
   const rows = [
     ['18:30', "Grandparents' house", 'Family', '#8b7bff'],
-    ['21:00', 'Flex mode test', 'Fold 8', '#3ddad7'],
+    ['21:00', 'Unfold & compare', 'Foldable', '#3ddad7'],
   ];
   rows.forEach((row, i) => {
-    const y = cardY + 170 + i * 130;
+    const y = cardY + 150 * u + i * 118 * u;
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.font = `500 46px ${FONT}`;
-    ctx.fillText(row[0], 140, y + 52);
+    ctx.font = `500 ${Math.round(42 * u * fs)}px ${FONT}`;
+    ctx.fillText(row[0], 130 * u, y + 46 * u);
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    ctx.font = `400 44px ${FONT}`;
-    ctx.fillText(row[1], 330, y + 14);
+    ctx.font = `400 ${Math.round(38 * u * fs)}px ${FONT}`;
+    ctx.fillText(row[1], 300 * u, y + 12 * u);
     ctx.fillStyle = hexAlpha(row[3], 0.85);
-    ctx.font = `400 34px ${FONT}`;
-    ctx.fillText(row[2], 330, y + 62);
+    ctx.font = `400 ${Math.round(30 * u * fs)}px ${FONT}`;
+    ctx.fillText(row[2], 300 * u, y + 56 * u);
     if (i === 0) {
       ctx.beginPath();
-      ctx.moveTo(140, y + 86);
-      ctx.lineTo(W - 140, y + 86);
+      ctx.moveTo(130 * u, y + 80 * u);
+      ctx.lineTo(W - 130 * u, y + 80 * u);
       ctx.strokeStyle = 'rgba(255,255,255,0.1)';
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -333,16 +285,11 @@ function drawInnerDisplay() {
   });
   ctx.restore();
 
-  /* --- dock --- */
-  const dockY = H - 300;
+  // dock
+  const dockH = 170 * u;
+  const dockY = H - dockH - 92 * u;
   ctx.save();
-  for (let i = 0; i < 3; i += 1) {
-    ctx.beginPath();
-    ctx.arc(W / 2 + (i - 1) * 34, dockY - 58, i === 0 ? 7 : 5, 0, Math.PI * 2);
-    ctx.fillStyle = i === 0 ? 'rgba(255,255,255,0.75)' : 'rgba(255,255,255,0.22)';
-    ctx.fill();
-  }
-  rr(ctx, 90, dockY, W - 180, 190, 60);
+  rr(ctx, 90 * u, dockY, W - 180 * u, dockH, 56 * u);
   ctx.fillStyle = 'rgba(255,255,255,0.055)';
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.1)';
@@ -355,43 +302,53 @@ function drawInnerDisplay() {
     ['camera', '#9498a3', '#4a4f5c'],
     ['gall', '#ff8a3d', '#d1472a'],
   ];
-  const iconSize = 96;
-  const gap = 54;
+  const iconSize = dockH * 0.52;
+  const gap = dockH * 0.3;
   const rowW = iconSize * 4 + gap * 3;
   const x0 = (W - rowW) / 2;
   icons.forEach((ic, i) => {
     const x = x0 + i * (iconSize + gap);
-    const y = dockY + 47;
+    const y = dockY + (dockH - iconSize) / 2;
     const g = ctx.createLinearGradient(x, y, x + iconSize, y + iconSize);
     g.addColorStop(0, ic[1]);
     g.addColorStop(1, ic[2]);
-    rr(ctx, x, y, iconSize, iconSize, 26);
+    rr(ctx, x, y, iconSize, iconSize, iconSize * 0.27);
     ctx.fillStyle = g;
     ctx.fill();
     glyph(ctx, ic[0], x + iconSize / 2, y + iconSize / 2, iconSize * 0.62, 'rgba(255,255,255,0.95)');
   });
+
+  // page dots
+  for (let i = 0; i < 3; i += 1) {
+    ctx.beginPath();
+    ctx.arc(W / 2 + (i - 1) * 30 * u, H - 56 * u, i === 0 ? 6 * u : 4.5 * u, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.2)';
+    ctx.fill();
+  }
   ctx.restore();
 
-  /* --- fold crease --- */
+  // crease
+  const cw = W * (0.055 + model.crease.width * 0.05);
+  const d = model.crease.depth;
   ctx.save();
-  const cw = 150;
   const cg2 = ctx.createLinearGradient(W / 2 - cw, 0, W / 2 + cw, 0);
   cg2.addColorStop(0, 'rgba(0,0,0,0)');
-  cg2.addColorStop(0.42, 'rgba(0,0,0,0.06)');
-  cg2.addColorStop(0.5, 'rgba(120,140,190,0.05)');
-  cg2.addColorStop(0.58, 'rgba(0,0,0,0.06)');
+  cg2.addColorStop(0.4, `rgba(0,0,0,${0.1 * d})`);
+  cg2.addColorStop(0.48, `rgba(150,168,220,${0.09 * d})`);
+  cg2.addColorStop(0.52, `rgba(150,168,220,${0.09 * d})`);
+  cg2.addColorStop(0.6, `rgba(0,0,0,${0.1 * d})`);
   cg2.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = cg2;
   ctx.fillRect(W / 2 - cw, 0, cw * 2, H);
-  ctx.fillStyle = 'rgba(190,215,255,0.03)';
-  ctx.fillRect(W / 2 - 1, 0, 2, H);
+  ctx.fillStyle = `rgba(196,214,255,${0.05 * d})`;
+  ctx.fillRect(W / 2 - 1.5, 0, 3, H);
   ctx.restore();
 
-  /* --- glass sheen --- */
+  // glass sheen
   ctx.save();
   const sheen = ctx.createLinearGradient(0, 0, W * 0.9, H * 0.75);
   sheen.addColorStop(0, 'rgba(255,255,255,0.045)');
-  sheen.addColorStop(0.35, 'rgba(255,255,255,0.018)');
+  sheen.addColorStop(0.35, 'rgba(255,255,255,0.016)');
   sheen.addColorStop(0.62, 'rgba(255,255,255,0)');
   ctx.fillStyle = sheen;
   ctx.fillRect(0, 0, W, H);
@@ -402,9 +359,12 @@ function drawInnerDisplay() {
 
 /* ---------- cover display ---------- */
 
-function drawCoverDisplay() {
-  const W = 760;
-  const H = 2000;
+function drawCover(model) {
+  const kind = model.cover.kind;
+  const [rw, rh] = model.cover.res;
+  const W = 700;
+  const H = Math.round((W * rh) / rw);
+  const u = Math.min(W, H) / 700;
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -417,166 +377,181 @@ function drawCoverDisplay() {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  glow(ctx, W * 0.1, H * 0.22, W * 1.0, '#5b4bff', 0.36);
-  glow(ctx, W * 0.95, H * 0.62, W * 0.8, '#14b8a6', 0.2);
-  glow(ctx, W * 0.5, H * 0.98, W * 0.9, '#4338ff', 0.22);
+  glow(ctx, W * 0.12, H * 0.18, W * 1.05, '#5b4bff', 0.36);
+  glow(ctx, W * 0.95, H * 0.62, W * 0.85, '#14b8a6', 0.2);
+  glow(ctx, W * 0.5, H * 0.98, W * 0.95, '#4338ff', 0.22);
+  grain(ctx, W, H, 2200, 0.02);
 
-  ctx.save();
-  ctx.strokeStyle = hexAlpha('#a78bfa', 0.16);
-  ctx.lineWidth = 10;
-  ctx.shadowColor = hexAlpha('#a78bfa', 0.4);
-  ctx.shadowBlur = 40;
-  ctx.beginPath();
-  ctx.moveTo(-40, H * 0.55);
-  ctx.bezierCurveTo(W * 0.5, H * 0.32, W * 0.4, H * 0.78, W + 40, H * 0.5);
-  ctx.stroke();
-  ctx.restore();
-
-  grain(ctx, W, H, 2600, 0.02);
-
-  // status bar
-  ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.font = `600 30px ${FONT}`;
-  ctx.fillText('9:41', 54, 82);
-  ctx.textAlign = 'right';
-  for (let i = 0; i < 4; i += 1) {
-    const h = 8 + i * 5;
-    rr(ctx, W - 160 + i * 12, 82 - h, 8, h, 2);
-    ctx.fill();
+  /* --- 1.1" pill: clock + level only --- */
+  if (kind === 'pill') {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    ctx.font = `300 ${Math.round(150 * u)}px ${FONT}`;
+    ctx.fillText('9:41', W / 2, H * 0.46);
+    ctx.fillStyle = 'rgba(226,232,255,0.6)';
+    ctx.font = `500 ${Math.round(70 * u)}px ${FONT}`;
+    ctx.fillText('SAT 14', W / 2, H * 0.62);
+    // battery arc
+    ctx.strokeStyle = 'rgba(140,255,200,0.75)';
+    ctx.lineWidth = 12 * u;
+    ctx.beginPath();
+    ctx.arc(W / 2, H * 0.82, W * 0.17, Math.PI * 0.72, Math.PI * 0.72 + Math.PI * 1.4);
+    ctx.stroke();
+    ctx.restore();
+    return c;
   }
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-  rr(ctx, W - 78, 60, 44, 24, 7);
-  ctx.stroke();
-  rr(ctx, W - 74, 64, 28, 16, 4);
-  ctx.fill();
-  ctx.restore();
 
-  // punch-hole camera
+  /* --- 1.9" landscape strip --- */
+  if (kind === 'strip') {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.font = `300 ${Math.round(150 * u)}px ${FONT}`;
+    ctx.textAlign = 'left';
+    ctx.fillText('9:41', W * 0.1, H * 0.56);
+    ctx.fillStyle = 'rgba(226,232,255,0.62)';
+    ctx.font = `500 ${Math.round(52 * u)}px ${FONT}`;
+    ctx.fillText('SAT · NOV 14', W * 0.1, H * 0.8);
+    sun(ctx, W * 0.78, H * 0.4, 44 * u, '#ffd479');
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = `300 ${Math.round(66 * u)}px ${FONT}`;
+    ctx.fillText('18°', W * 0.68, H * 0.85);
+    // notification dot
+    ctx.beginPath();
+    ctx.arc(W * 0.92, H * 0.22, 12 * u, 0, Math.PI * 2);
+    ctx.fillStyle = '#8b7bff';
+    ctx.fill();
+    ctx.restore();
+    return c;
+  }
+
+  /* --- big panels: lock screen / widgets --- */
+  const ins = W * 0.075;
   ctx.save();
-  ctx.beginPath();
-  ctx.arc(W / 2, 140, 15, 0, Math.PI * 2);
-  ctx.fillStyle = '#000';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(W / 2 - 3, 136, 4, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(90,120,200,0.5)';
-  ctx.fill();
+  statusBar(ctx, W, H, Math.min(u, 1.1), 'rgba(255,255,255,0.9)', 1);
   ctx.restore();
 
-  // lock screen clock
+  const clockSize = kind === 'folder' ? 200 : kind === 'full' ? 210 : 210;
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.97)';
-  ctx.font = `200 210px ${FONT}`;
-  ctx.fillText('9:41', 46, 430);
+  ctx.font = `200 ${Math.round(clockSize * u)}px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.fillText('9:41', ins, H * 0.3);
   ctx.fillStyle = 'rgba(226,232,255,0.6)';
-  ctx.font = `400 40px ${FONT}`;
-  ctx.fillText('Sat, Nov 14', 52, 495);
+  ctx.font = `400 ${Math.round(46 * u)}px ${FONT}`;
+  ctx.fillText('Sat, Nov 14', ins + 4 * u, H * 0.365);
+  ctx.restore();
 
   // weather row
   ctx.save();
-  ctx.translate(58, 570);
-  ctx.fillStyle = '#ffd479';
-  ctx.beginPath();
-  ctx.arc(0, 0, 16, 0, Math.PI * 2);
-  ctx.fill();
-  for (let i = 0; i < 8; i += 1) {
-    const a = (i / 8) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * 22, Math.sin(a) * 22);
-    ctx.lineTo(Math.cos(a) * 29, Math.sin(a) * 29);
-    ctx.strokeStyle = '#ffd479';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-  }
-  ctx.restore();
+  sun(ctx, ins + 22 * u, H * 0.435, 26 * u, '#ffd479');
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = `300 44px ${FONT}`;
-  ctx.fillText('18°   Clear', 106, 588);
+  ctx.font = `300 ${Math.round(48 * u)}px ${FONT}`;
+  ctx.fillText('18°   Clear', ins + 66 * u, H * 0.45);
   ctx.restore();
 
-  // notification cards
-  const notes = [
-    ['message', '#3a8bff', 'Mina', 'See you at 6:30 — bring the fold!'],
-    ['call', '#2ac66b', 'Mom', 'Missed call · 12 min ago'],
-  ];
-  notes.forEach((n, i) => {
-    const y = 700 + i * 190;
-    ctx.save();
-    rr(ctx, 40, y, W - 80, 158, 40);
-    ctx.fillStyle = 'rgba(255,255,255,0.085)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  if (kind === 'tall' || kind === 'normal' || kind === 'wide') {
+    const notes = [
+      ['message', '#3a8bff', 'Mina', 'See you at 6:30!'],
+      ['call', '#2ac66b', 'Mom', 'Missed call · 12 min'],
+    ];
+    notes.forEach((n, i) => {
+      const y = H * 0.53 + i * H * 0.1;
+      ctx.save();
+      rr(ctx, ins, y, W - ins * 2, H * 0.086, 30 * u);
+      ctx.fillStyle = 'rgba(255,255,255,0.085)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      const s = H * 0.05;
+      const g = ctx.createLinearGradient(ins + 22 * u, y + 12 * u, ins + 22 * u + s, y + 12 * u + s);
+      g.addColorStop(0, n[1]);
+      g.addColorStop(1, hexAlpha(n[1], 0.45));
+      rr(ctx, ins + 22 * u, y + (H * 0.086 - s) / 2, s, s, s * 0.3);
+      ctx.fillStyle = g;
+      ctx.fill();
+      glyph(ctx, n[0], ins + 22 * u + s / 2, y + H * 0.043, s * 0.6, 'rgba(255,255,255,0.95)');
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = `600 ${Math.round(32 * u)}px ${FONT}`;
+      ctx.fillText(n[2], ins + 34 * u + s, y + H * 0.038);
+      ctx.fillStyle = 'rgba(226,232,255,0.58)';
+      ctx.font = `400 ${Math.round(27 * u)}px ${FONT}`;
+      ctx.fillText(n[3], ins + 34 * u + s, y + H * 0.066);
+      ctx.restore();
+    });
+  }
 
-    const g = ctx.createLinearGradient(70, y + 40, 130, y + 100);
-    g.addColorStop(0, n[1]);
-    g.addColorStop(1, hexAlpha(n[1], 0.45));
-    rr(ctx, 70, y + 38, 58, 58, 18);
+  if (kind === 'folder') {
+    // compact widget tiles
+    const tiles = [
+      ['Music', 'Night Drive', '#8b7bff'],
+      ['Steps', '6,204', '#3ddad7'],
+    ];
+    tiles.forEach((t, i) => {
+      const y = H * 0.5 + i * H * 0.115;
+      ctx.save();
+      rr(ctx, ins, y, W - ins * 2, H * 0.1, 30 * u);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.11)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = hexAlpha(t[2], 0.95);
+      ctx.beginPath();
+      ctx.arc(ins + 46 * u, y + H * 0.05, 14 * u, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = `500 ${Math.round(30 * u)}px ${FONT}`;
+      ctx.fillText(t[1], ins + 74 * u, y + H * 0.062);
+      ctx.fillStyle = 'rgba(226,232,255,0.5)';
+      ctx.font = `400 ${Math.round(24 * u)}px ${FONT}`;
+      ctx.fillText(t[0], ins + 74 * u, y + H * 0.086);
+      ctx.restore();
+    });
+  }
+
+  if (kind === 'full') {
+    // Now Brief card
+    const y = H * 0.52;
+    ctx.save();
+    rr(ctx, ins, y, W - ins * 2, H * 0.17, 34 * u);
+    const g = ctx.createLinearGradient(ins, y, W - ins, y + H * 0.17);
+    g.addColorStop(0, 'rgba(139,123,255,0.22)');
+    g.addColorStop(1, 'rgba(61,218,215,0.1)');
     ctx.fillStyle = g;
     ctx.fill();
-    glyph(ctx, n[0], 99, y + 67, 34, 'rgba(255,255,255,0.95)');
-
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.font = `600 34px ${FONT}`;
-    ctx.fillText(n[2], 146, y + 66);
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.font = `600 ${Math.round(26 * u)}px ${FONT}`;
+    ctx.fillText('NOW BRIEF', ins + 28 * u, y + H * 0.045);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.font = `400 ${Math.round(32 * u)}px ${FONT}`;
+    ctx.fillText('Grandparents at 18:30', ins + 28 * u, y + H * 0.09);
     ctx.fillStyle = 'rgba(226,232,255,0.6)';
-    ctx.font = `400 30px ${FONT}`;
-    ctx.fillText(n[3], 146, y + 108);
+    ctx.font = `400 ${Math.round(27 * u)}px ${FONT}`;
+    ctx.fillText('Leave by 17:50 · 24 min', ins + 28 * u, y + H * 0.128);
     ctx.restore();
-  });
+  }
 
-  // now bar
-  ctx.save();
-  rr(ctx, 60, H - 640, W - 120, 96, 48);
-  ctx.fillStyle = 'rgba(255,255,255,0.09)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.fillStyle = hexAlpha('#8b7bff', 0.9);
-  ctx.beginPath();
-  ctx.arc(112, H - 592, 20, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.font = `500 30px ${FONT}`;
-  ctx.fillText('Now playing · Night Drive', 150, H - 580);
-  ctx.restore();
+  // quick shortcuts on round covers
+  if (kind === 'folder' || kind === 'full') {
+    const sh = ['call', 'message', 'camera', 'music'];
+    const y = H - 120 * u;
+    sh.forEach((kindOf, i) => {
+      const x = ins + 52 * u + i * ((W - ins * 2 - 104 * u) / 3);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, 40 * u, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.fill();
+      glyph(ctx, kindOf, x, y, 40 * u, 'rgba(255,255,255,0.9)');
+      ctx.restore();
+    });
+  }
 
-  // shortcuts
-  const sh = [
-    ['call', 120],
-    ['message', 300],
-    ['camera', 480],
-    ['wallet', 640],
-  ];
-  sh.forEach((s) => {
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(s[1], H - 300, 46, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fill();
-    glyph(ctx, s[0], s[1], H - 300, 46, 'rgba(255,255,255,0.9)');
-    ctx.restore();
-  });
-
-  // swipe hint
-  ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.font = `400 26px ${FONT}`;
-  ctx.textAlign = 'center';
-  ctx.fillText('Swipe up to unlock', W / 2, H - 180);
-  rr(ctx, W / 2 - 60, H - 140, 120, 6, 3);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fill();
-  ctx.restore();
-
-  // crease highlight not needed here (cover panel is one flat pane)
   // glass sheen
   ctx.save();
   const sheen = ctx.createLinearGradient(0, 0, W, H * 0.6);
@@ -590,7 +565,7 @@ function drawCoverDisplay() {
   return c;
 }
 
-/* ---------- engraved wordmark (drawn mirrored: it lives on the back face) ---------- */
+/* ---------- engraved wordmark ---------- */
 
 function drawEngrave(text) {
   const W = 1024;
@@ -601,11 +576,15 @@ function drawEngrave(text) {
   const ctx = c.getContext('2d');
   ctx.translate(W, 0);
   ctx.scale(-1, 1);
-  ctx.fillStyle = 'rgba(255,255,255,0.42)';
-  ctx.font = `500 92px ${FONT}`;
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  let size = 92;
+  do {
+    ctx.font = `500 ${size}px ${FONT}`;
+    size -= 4;
+  } while (ctx.measureText(text).width > W * 0.82 && size > 30);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '14px';
+  if (ctx.letterSpacing !== undefined) ctx.letterSpacing = '12px';
   ctx.fillText(text, W / 2, H / 2);
   return c;
 }
@@ -619,7 +598,6 @@ function drawBrushedRough(size = 512) {
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#c9c9c9';
   ctx.fillRect(0, 0, size, size);
-  // long soft streaks along y (brushed along the phone's length)
   for (let i = 0; i < 2600; i += 1) {
     const x = Math.random() * size;
     const v = 150 + Math.random() * 90;
@@ -650,9 +628,28 @@ function drawMicroNoise(size = 256) {
   return c;
 }
 
+function drawConcentric(size = 256) {
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#8a8a8a';
+  ctx.fillRect(0, 0, size, size);
+  const cx = size / 2;
+  const cy = size / 2;
+  for (let r = 4; r < size * 0.72; r += 3) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = r % 6 === 0 ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.28)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+  }
+  return c;
+}
+
 /* ---------- public API ---------- */
 
-const cache = {};
+const cache = new Map();
 
 function tex(canvas, { srgb = true, repeat = null, aniso = 8 } = {}) {
   const t = new THREE.CanvasTexture(canvas);
@@ -667,29 +664,33 @@ function tex(canvas, { srgb = true, repeat = null, aniso = 8 } = {}) {
   return t;
 }
 
-export function innerDisplayTexture() {
-  if (!cache.inner) cache.inner = tex(drawInnerDisplay(), { aniso: 8 });
-  return cache.inner;
+function memo(key, make) {
+  if (!cache.has(key)) cache.set(key, make());
+  return cache.get(key);
 }
 
-export function coverDisplayTexture() {
-  if (!cache.cover) cache.cover = tex(drawCoverDisplay(), { aniso: 8 });
-  return cache.cover;
+export function innerDisplayTexture(model) {
+  return memo(`inner:${model.id}`, () => tex(drawInner(model), { aniso: 8 }));
 }
 
-export function engraveTexture(text = 'GALAXY Z FOLD 8') {
-  if (!cache.engrave) cache.engrave = tex(drawEngrave(text), { aniso: 4 });
-  return cache.engrave;
+export function coverDisplayTexture(model) {
+  return memo(`cover:${model.id}`, () => tex(drawCover(model), { aniso: 8 }));
+}
+
+export function engraveTexture(text) {
+  return memo(`etch:${text}`, () => tex(drawEngrave(text), { aniso: 4 }));
 }
 
 export function brushedRoughnessTexture() {
-  if (!cache.brushed)
-    cache.brushed = tex(drawBrushedRough(), { srgb: false, repeat: [2, 3], aniso: 4 });
-  return cache.brushed;
+  return memo('brushed', () =>
+    tex(drawBrushedRough(), { srgb: false, repeat: [2, 3], aniso: 4 })
+  );
 }
 
 export function microRoughnessTexture() {
-  if (!cache.micro)
-    cache.micro = tex(drawMicroNoise(), { srgb: false, repeat: [4, 4], aniso: 4 });
-  return cache.micro;
+  return memo('micro', () => tex(drawMicroNoise(), { srgb: false, repeat: [4, 4], aniso: 4 }));
+}
+
+export function concentricTexture() {
+  return memo('concentric', () => tex(drawConcentric(), { srgb: false, aniso: 4 }));
 }
