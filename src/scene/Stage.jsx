@@ -159,7 +159,7 @@ function StageFloor({ y }) {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y, 0]} receiveShadow>
-        <circleGeometry args={[90, 64]} />
+        <circleGeometry args={[420, 96]} />
         <meshStandardMaterial color="#0a0b11" roughness={0.9} metalness={0.15} envMapIntensity={0.35} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, y + 0.02, 0]}>
