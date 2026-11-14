@@ -53,7 +53,8 @@ function useGeometry() {
       coverFrame: frameGeometry(DIM.cover.w + 0.34, DIM.cover.h + 0.34, 0.42, 0.17, 0.035),
       engravePlate: new THREE.PlaneGeometry(2.9, 0.72),
       lensRing: new THREE.CylinderGeometry(0.5, 0.5, 0.11, 56, 1, false),
-      lensRim: new THREE.CylinderGeometry(0.44, 0.46, 0.08, 56, 1, false),
+      lensRingInner: new THREE.CylinderGeometry(0.4, 0.42, 0.05, 56, 1, false),
+      lensRim: new THREE.CylinderGeometry(0.36, 0.38, 0.08, 56, 1, false),
       lensGlass: new THREE.SphereGeometry(0.42, 48, 24, 0, Math.PI * 2, 0, Math.PI * 0.5),
       knuckle: new THREE.TorusGeometry(0.184, 0.026, 12, 56),
       groove: new THREE.TorusGeometry(0.19, 0.005, 8, 56),
@@ -104,6 +105,14 @@ function useMaterials(colorway) {
         clearcoat: 0.7,
         clearcoatRoughness: 0.1,
         envMapIntensity: 1.55,
+      }),
+      ringDark: new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(c.ringDark ?? '#4a4f58'),
+        metalness: 1,
+        roughness: 0.3,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.18,
+        envMapIntensity: 1.2,
       }),
       ring: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(c.ring),
@@ -316,19 +325,25 @@ function CameraIsland({ mats, geos }) {
       />
       {lenses.map((ly, i) => (
         <group key={i} position={[x, ly, zBack - plate * 1.2]}>
-          <mesh geometry={geos.lensRing} material={mats.ring} rotation={[Math.PI / 2, 0, 0]} castShadow />
+          <mesh geometry={geos.lensRing} material={mats.ringDark} rotation={[Math.PI / 2, 0, 0]} castShadow />
+          <mesh
+            geometry={geos.lensRingInner}
+            material={mats.ring}
+            rotation={[Math.PI / 2, 0, 0]}
+            position={[0, 0, 0.045]}
+          />
           <mesh
             geometry={geos.lensRim}
             material={mats.dark}
             rotation={[Math.PI / 2, 0, 0]}
-            position={[0, 0, 0.035]}
+            position={[0, 0, 0.06]}
           />
           <mesh
             geometry={geos.lensGlass}
             material={mats.lens}
             rotation={[-Math.PI / 2, 0, 0]}
             scale={[1, 0.4, 1]}
-            position={[0, 0, 0.06]}
+            position={[0, 0, 0.075]}
           />
         </group>
       ))}

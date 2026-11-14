@@ -42,6 +42,7 @@ export const COLORWAYS = {
     back: '#7f828a',
     hinge: '#9ba0a7',
     ring: '#b9bec6',
+    ringDark: '#4a4f58',
     accent: '#9aa3b2',
   },
   silver: {
@@ -53,6 +54,7 @@ export const COLORWAYS = {
     back: '#c3c7cd',
     hinge: '#dfe3e8',
     ring: '#e7eaee',
+    ringDark: '#6b7280',
     accent: '#d7dbe1',
   },
   black: {
@@ -64,6 +66,7 @@ export const COLORWAYS = {
     back: '#24262b',
     hinge: '#3a3d44',
     ring: '#4a4e57',
+    ringDark: '#22252b',
     accent: '#5b606b',
   },
   navy: {
@@ -75,6 +78,7 @@ export const COLORWAYS = {
     back: '#2a3750',
     hinge: '#415372',
     ring: '#5b6f92',
+    ringDark: '#2b3648',
     accent: '#6d82a6',
   },
 };
