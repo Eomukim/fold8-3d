@@ -534,6 +534,29 @@ const FLIP = [
   },
 ];
 
+
+/* ---------- hinge / spine character per generation ----------
+   protrude: how far the spine stands proud of the back when the device is open (cm)
+   knuckle:  segmented barrel with visible hinge knuckles (early generations)      */
+const HINGE = {
+  'fold-1': { protrude: 0.15, knuckle: true, radius: 1.55 },
+  'fold-2': { protrude: 0.12, knuckle: true, radius: 1.5 },
+  'fold-3': { protrude: 0.1, knuckle: true, radius: 1.45 },
+  'fold-4': { protrude: 0.08, knuckle: true, radius: 1.4 },
+  'fold-5': { protrude: 0.035, knuckle: false, radius: 1.3 },
+  'fold-6': { protrude: 0.025, knuckle: false, radius: 1.28 },
+  'fold-7': { protrude: 0.02, knuckle: false, radius: 1.26 },
+  'fold-8': { protrude: 0.02, knuckle: false, radius: 1.26 },
+  'fold-8-ultra': { protrude: 0.02, knuckle: false, radius: 1.26 },
+  'flip-1': { protrude: 0.15, knuckle: true, radius: 1.5 },
+  'flip-3': { protrude: 0.09, knuckle: true, radius: 1.4 },
+  'flip-4': { protrude: 0.075, knuckle: true, radius: 1.38 },
+  'flip-5': { protrude: 0.035, knuckle: false, radius: 1.3 },
+  'flip-6': { protrude: 0.03, knuckle: false, radius: 1.3 },
+  'flip-7': { protrude: 0.02, knuckle: false, radius: 1.28 },
+  'flip-8': { protrude: 0.02, knuckle: false, radius: 1.28 },
+};
+
 /* ---------- assemble ---------- */
 
 function prep(m, series) {
@@ -553,6 +576,8 @@ function prep(m, series) {
     coverW: r.w,
     coverH: r.h,
     colors,
+    hinge: HINGE[m.id],
+    seam: isBook ? 0.06 : 0.06,
     flex: isBook ? 115 : 95,
     colorway: colors[0].id,
   };

@@ -173,12 +173,13 @@ function useGeometry(model) {
     /* body slabs */
     let fixedShape;
     let movingShape;
+    const seam = model.seam ?? 0.06;
     if (form === 'book') {
-      fixedShape = roundedRectShape(half, across, [g.rHinge, g.rOuter, g.rOuter, g.rHinge], half / 2, 0);
-      movingShape = roundedRectShape(half, across, [g.rOuter, g.rHinge, g.rHinge, g.rOuter], -half / 2, 0);
+      fixedShape = roundedRectShape(half, across, [seam, g.rOuter, g.rOuter, seam], half / 2, 0);
+      movingShape = roundedRectShape(half, across, [g.rOuter, seam, seam, g.rOuter], -half / 2, 0);
     } else {
-      fixedShape = roundedRectShape(across, half, [g.rHinge, g.rHinge, g.rOuter, g.rOuter], 0, -half / 2);
-      movingShape = roundedRectShape(across, half, [g.rOuter, g.rOuter, g.rHinge, g.rHinge], 0, half / 2);
+      fixedShape = roundedRectShape(across, half, [g.rOuter, g.rOuter, seam, seam], 0, half / 2);
+      movingShape = roundedRectShape(across, half, [seam, seam, g.rOuter, g.rOuter], 0, -half / 2);
     }
 
     const inset = g.backInset ?? 0.24;
@@ -188,16 +189,16 @@ function useGeometry(model) {
         const h = across - inset;
         const radii =
           s > 0
-            ? [g.rHinge * 0.7, g.rOuter * 0.7, g.rOuter * 0.7, g.rHinge * 0.7]
-            : [g.rOuter * 0.7, g.rHinge * 0.7, g.rHinge * 0.7, g.rOuter * 0.7];
+            ? [seam, g.rOuter * 0.7, g.rOuter * 0.7, seam]
+            : [g.rOuter * 0.7, seam, seam, g.rOuter * 0.7];
         return roundedRectShape(w, h, radii, (s * half) / 2, 0);
       }
       const w = across - inset;
       const h = half - inset;
       const radii =
         s > 0
-          ? [g.rHinge * 0.7, g.rHinge * 0.7, g.rOuter * 0.7, g.rOuter * 0.7]
-          : [g.rOuter * 0.7, g.rOuter * 0.7, g.rHinge * 0.7, g.rHinge * 0.7];
+          ? [g.rOuter * 0.7, g.rOuter * 0.7, seam, seam]
+          : [seam, seam, g.rOuter * 0.7, g.rOuter * 0.7];
       return roundedRectShape(w, h, radii, 0, (s * half) / 2);
     };
 
@@ -221,8 +222,8 @@ function useGeometry(model) {
       fixedScreen = splitScreenPlane(dispW / 2, dispH, 0.5, 1);
       movingScreen = splitScreenPlane(dispW / 2, dispH, 0, 0.5);
     } else {
-      fixedScreen = splitScreenPlane(dispW, dispH / 2, 0, 1, 0, 0.5);
-      movingScreen = splitScreenPlane(dispW, dispH / 2, 0, 1, 0.5, 1);
+      fixedScreen = splitScreenPlane(dispW, dispH / 2, 0, 1, 0.5, 1);
+      movingScreen = splitScreenPlane(dispW, dispH / 2, 0, 1, 0, 0.5);
     }
 
     const coverW = Math.min(model.coverW, (form === 'book' ? half : across) - 0.5);
@@ -238,10 +239,10 @@ function useGeometry(model) {
       coverH,
       fixedBody: extrudeChamfered(fixedShape, T, bev, 20),
       movingBody: extrudeChamfered(movingShape, T, bev, 20),
-      fixedBack: extrudeChamfered(backShape(form === 'book' ? 1 : -1), 0.03, 0.008, 20),
-      movingBack: extrudeChamfered(backShape(form === 'book' ? -1 : 1), 0.03, 0.008, 20),
-      fixedPlate: extrudeChamfered(plateShape(form === 'book' ? 1 : -1), 0.012, 0.004, 16),
-      movingPlate: extrudeChamfered(plateShape(form === 'book' ? -1 : 1), 0.012, 0.004, 16),
+      fixedBack: extrudeChamfered(backShape(1), 0.03, 0.008, 20),
+      movingBack: extrudeChamfered(backShape(-1), 0.03, 0.008, 20),
+      fixedPlate: extrudeChamfered(plateShape(1), 0.012, 0.004, 16),
+      movingPlate: extrudeChamfered(plateShape(-1), 0.012, 0.004, 16),
       fixedScreen,
       movingScreen,
       coverScreen: splitScreenPlane(coverW, coverH, 0, 1),
@@ -254,6 +255,10 @@ function useGeometry(model) {
       ),
       engravePlate: new THREE.PlaneGeometry(Math.min(3.2, across * 0.28), 0.62),
       spindle: new THREE.CylinderGeometry(1, 1, 1, 64, 1, false),
+      /* spine cover: sector around the fold's outward direction, its rims
+         tucked inside the body so nothing pokes through the display */
+      barrel: new THREE.CylinderGeometry(1, 1, 1, 48, 1, false, Math.PI - 1.22, 2.44),
+      barrelBand: new THREE.CylinderGeometry(1.006, 1.006, 1, 32, 1, false, Math.PI - 1.22, 2.44),
       knuckle: new THREE.TorusGeometry(1, 0.13, 10, 48),
       speakerHole: new THREE.CylinderGeometry(0.024, 0.024, 0.09, 10),
       punch: new THREE.SphereGeometry(1, 24, 16),
@@ -265,10 +270,10 @@ function useGeometry(model) {
 /*  small parts                                                       */
 /* ------------------------------------------------------------------ */
 
-function Buttons({ mats, T, sideX, across, form }) {
+function Buttons({ mats, T, sideX, across, form, base }) {
   const x = sideX - 0.03;
   const len = Math.min(2.0, across * 0.14);
-  const y0 = across * 0.22;
+  const y0 = base ?? across * 0.22;
   return (
     <group>
       <RB
@@ -336,39 +341,34 @@ function BottomEdge({ mats, geos, T, x, y, width }) {
   );
 }
 
-function Hinge({ mats, geos, T, length, form, detailRef, pivotZ }) {
-  const r = pivotZ * 0.58;
-  const zc = -pivotZ * 0.12;
-  const rot = form === 'book' ? 0 : Math.PI / 2;
+function Hinge({ mats, geos, T, length, form, barrelRef, pivotZ, hinge }) {
+  /* spine cover: a half barrel centred on the fold axis whose outer surface
+     sits just proud of the device's outer face, so it reads as the hinge spine
+     both open (a flat strip on the back) and folded (a rounded spine edge).   */
+  const R = pivotZ + T / 2 + (hinge?.protrude ?? 0.03);
   const knuckles = useMemo(() => {
     const n = 5;
     const out = [];
-    for (let i = 0; i < n; i += 1) out.push((-length / 2) * 0.78 + (i * length * 0.78) / (n - 1));
+    for (let i = 0; i < n; i += 1) out.push((-length / 2) * 0.86 + (i * length * 0.86) / (n - 1));
     return out;
   }, [length]);
+  const rot = form === 'flip' ? Math.PI / 2 : 0;
 
   return (
-    <group>
-      <group rotation={[0, 0, rot]}>
-        <mesh
-          geometry={geos.spindle}
-          material={mats.hinge}
-          scale={[r, length * 0.9, r]}
-          position={[0, 0, zc]}
-          castShadow
-          receiveShadow
-        />
-        <group ref={detailRef}>
-          {knuckles.map((k, i) => (
-            <mesh
-              key={i}
-              geometry={geos.knuckle}
-              material={mats.ring}
-              scale={[r * 1.06, r * 1.06, r * 1.06]}
-              position={[0, k, zc]}
-              rotation={[Math.PI / 2, 0, 0]}
-            />
-          ))}
+    <group position={[0, 0, pivotZ]}>
+      <group ref={barrelRef} userData={{ dbg: 'hinge' }}>
+        <group rotation={[0, 0, rot]}>
+          <mesh geometry={geos.barrel} material={mats.hinge} scale={[R, length, R]} castShadow receiveShadow />
+          {hinge?.knuckle &&
+            knuckles.map((k, i) => (
+              <mesh
+                key={i}
+                geometry={geos.barrelBand}
+                material={mats.ring}
+                scale={[R, length * 0.075, R]}
+                position={[0, k, 0]}
+              />
+            ))}
         </group>
       </group>
     </group>
@@ -386,7 +386,7 @@ export default function DeviceModel({ model }) {
 
   const rootRef = useRef();
   const movingRef = useRef();
-  const detailRef = useRef();
+  const barrelRef = useRef();
   const cur = useRef(Math.PI);
   const autoPhase = useRef(Math.PI / 2);
 
@@ -394,14 +394,17 @@ export default function DeviceModel({ model }) {
   const form = model.form;
   const gap = Math.max(0.02, model.dims.tFold - 2 * model.dims.tOpen);
   const pivotZ = T / 2 + gap / 2;
-  const wedge = model.dims.wedge;
+  /* the wedge closes exactly to the free edge: the two halves touch there and
+     stay `gap` apart at the spine, so they never pass through each other     */
+  const wedgeRad =
+    gap > 0.09 ? Math.min(0.4, Math.asin(Math.min(0.5, Math.max(0.02, gap - 0.07) / model.half))) : 0;
 
   /* facing helpers */
   const S = 1; // fixed half positive side
   const fixedCx = form === 'book' ? dispW / 4 : 0;
-  const fixedCy = form === 'book' ? 0 : -dispH / 4;
+  const fixedCy = form === 'book' ? 0 : dispH / 4;
   const movingCx = form === 'book' ? -dispW / 4 : 0;
-  const movingCy = form === 'book' ? 0 : dispH / 4;
+  const movingCy = form === 'book' ? 0 : -dispH / 4;
   const screenZ = T / 2 + 0.018;
   const plateZ = T / 2 + 0.002;
 
@@ -420,19 +423,22 @@ export default function DeviceModel({ model }) {
     else cur.current = THREE.MathUtils.damp(cur.current, target, s.auto ? 3.2 : 6.5, d);
 
     const open = Math.PI - cur.current;
-    const a = open * (1 - THREE.MathUtils.degToRad(wedge) / Math.PI);
+    const wedgeSign = form === 'book' ? 1 : -1;
+    const a = open * (1 + (wedgeSign * wedgeRad) / Math.PI);
     foldBus.deg = THREE.MathUtils.radToDeg(cur.current);
 
     if (movingRef.current) {
       if (form === 'book') movingRef.current.rotation.y = a;
       else movingRef.current.rotation.x = a;
     }
-    if (detailRef.current) detailRef.current.rotation.y = a * 0.5;
+    if (barrelRef.current) {
+      if (form === 'book') barrelRef.current.rotation.y = a * 0.5;
+      else barrelRef.current.rotation.x = -a * 0.5;
+    }
     if (rootRef.current) {
-      const span = form === 'book' ? half : across;
       const k = (1 - Math.cos(a)) / 2;
-      if (form === 'book') rootRef.current.position.x = -(span / 2) * k;
-      else rootRef.current.position.y = (span / 4) * k;
+      if (form === 'book') rootRef.current.position.x = -(half / 2) * k;
+      else rootRef.current.position.y = -(half / 2) * k;
     }
 
     const on = s.screensOn ? 1 : 0.035;
@@ -441,7 +447,7 @@ export default function DeviceModel({ model }) {
     mats.cover.color.setScalar(k2);
   });
 
-  const hingeLength = across * 0.9;
+  const hingeLength = across * 0.925;
 
   return (
     <group ref={rootRef}>
@@ -454,7 +460,43 @@ export default function DeviceModel({ model }) {
           geometry={geos.fixedScreen}
           material={mats.inner}
           position={[fixedCx, fixedCy, screenZ]}
+          userData={{ dbg: 'fixedScreen' }}
         />
+          {/* inner selfie camera — sits on the fixed half's display */}
+          {model.innerCam === 'punch' && form === 'book' && (
+            <mesh
+              material={mats.bezel}
+              position={[dispW * 0.5 - 0.6, dispH / 2 - 0.42, screenZ + 0.03]}
+            >
+              <sphereGeometry args={[0.07, 18, 12]} />
+            </mesh>
+          )}
+          {model.innerCam === 'punch' && form === 'flip' && (
+            <mesh
+              material={mats.bezel}
+              position={[0, dispH / 2 - 0.42, screenZ + 0.03]}
+            >
+              <sphereGeometry args={[0.07, 18, 12]} />
+            </mesh>
+          )}
+          {model.innerCam === 'udc' && (
+            <mesh
+              material={mats.bezel}
+              position={[form === 'book' ? dispW * 0.5 - 0.6 : 0, dispH / 2 - 0.42, screenZ + 0.006]}
+            >
+              <circleGeometry args={[0.055, 20]} />
+            </mesh>
+          )}
+          {model.innerCam === 'notch' && (
+            <RB
+              args={[2.6, 0.78, 0.05]}
+              radius={0.32}
+              smoothness={5}
+              position={[dispW * 0.5 - 1.32, dispH / 2 - 0.4, screenZ + 0.006]}
+              material={mats.bezelFlat}
+            />
+          )}
+
         {form === 'book' ? (
           <>
             <CameraIsland model={model} mats={mats} zBack={-T / 2} T={T} />
@@ -470,12 +512,11 @@ export default function DeviceModel({ model }) {
           </>
         ) : (
           <>
-            <Buttons mats={mats} T={T} sideX={across / 2} across={across} form={form} />
-            <BottomEdge mats={mats} geos={geos} T={T} x={0} y={-across / 2 + 0.02} width={across} />
+            <BottomEdge mats={mats} geos={geos} T={T} x={0} y={-half + 0.03} width={across} />
             <mesh
               geometry={geos.engravePlate}
               material={mats.etch}
-              position={[0, -across / 2 + 1.3, -T / 2 - 0.03]}
+              position={[0, -half + 1.25, -T / 2 - 0.03]}
               rotation={[0, Math.PI, 0]}
               renderOrder={2}
             />
@@ -493,6 +534,7 @@ export default function DeviceModel({ model }) {
             geometry={geos.movingScreen}
             material={mats.inner}
             position={[movingCx, movingCy, screenZ]}
+            userData={{ dbg: 'movingScreen' }}
           />
 
           {/* cover display on the outer face */}
@@ -503,6 +545,7 @@ export default function DeviceModel({ model }) {
                 material={mats.cover}
                 position={[-half / 2, 0, -T / 2 - 0.012]}
                 rotation={[0, Math.PI, 0]}
+                userData={{ dbg: 'coverScreen' }}
               />
               <mesh
                 geometry={geos.coverFrame}
@@ -515,40 +558,10 @@ export default function DeviceModel({ model }) {
             <CoverCluster model={model} mats={mats} half={half} width={across} T={T} coverW={geos.coverW} coverH={geos.coverH} />
           )}
 
-          {/* inner selfie camera */}
-          {model.innerCam === 'punch' && form === 'book' && (
-            <mesh
-              material={mats.bezel}
-              position={[dispW * 0.36, dispH / 2 - 0.42, screenZ + 0.03]}
-            >
-              <sphereGeometry args={[0.07, 18, 12]} />
-            </mesh>
+          {form === 'flip' && (
+            <Buttons mats={mats} T={T} sideX={across / 2} across={across} form={form} base={-half * 0.62} />
           )}
-          {model.innerCam === 'punch' && form === 'flip' && (
-            <mesh
-              material={mats.bezel}
-              position={[dispW * 0.22, dispH / 2 - 0.42, screenZ + 0.03]}
-            >
-              <sphereGeometry args={[0.07, 18, 12]} />
-            </mesh>
-          )}
-          {model.innerCam === 'udc' && (
-            <mesh
-              material={mats.bezel}
-              position={[form === 'book' ? dispW * 0.36 : dispW * 0.22, dispH / 2 - 0.42, screenZ + 0.006]}
-            >
-              <circleGeometry args={[0.055, 20]} />
-            </mesh>
-          )}
-          {model.innerCam === 'notch' && (
-            <RB
-              args={[2.55, 0.74, 0.05]}
-              radius={0.3}
-              smoothness={5}
-              position={[dispW * 0.16, dispH / 2 - 0.3, screenZ + 0.01]}
-              material={mats.bezelFlat}
-            />
-          )}
+
         </group>
       </group>
 
@@ -559,8 +572,9 @@ export default function DeviceModel({ model }) {
         T={T}
         length={hingeLength}
         form={form}
-        detailRef={detailRef}
+        barrelRef={barrelRef}
         pivotZ={pivotZ}
+        hinge={model.hinge}
       />
     </group>
   );

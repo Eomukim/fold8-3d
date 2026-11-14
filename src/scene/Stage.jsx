@@ -57,6 +57,7 @@ function CameraRig({ controls }) {
   }, [model, size.width, size.height]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.__freezeCam) return;
     const isFlipFront = model.form === 'flip' && preset === 'cover';
     const p = (isFlipFront ? CAMERA_PRESETS.coverFront : CAMERA_PRESETS[preset]) ?? CAMERA_PRESETS.overview;
     const target = presetTarget(preset, model);
@@ -81,6 +82,7 @@ function CameraRig({ controls }) {
   }, [controls]);
 
   useFrame((_, dt) => {
+    if (typeof window !== 'undefined' && window.__freezeCam) return;
     if (!anim.current || !controls) return;
     const a = anim.current;
     a.t = typeof window !== 'undefined' && window.__snap ? 1 : Math.min(1, a.t + dt / 1.15);
@@ -209,6 +211,9 @@ function StageFloor({ y }) {
 
 function SceneContents() {
   const controls = useThree((s) => s.controls);
+  useEffect(() => {
+    if (typeof window !== 'undefined') window.__controls = controls;
+  }, [controls]);
   const quality = useThree((s) => (s.viewport.width < 720 ? 'low' : 'high'));
   const model = useModel();
   const { vHalf } = metrics(model);

@@ -68,7 +68,8 @@ export function CameraIsland({ model, mats, zBack, T }) {
   );
 
   const { layout, count, w, h, x, y } = cam;
-  const z = zBack - plate * 0.55;
+  const z = zBack - plate * 0.55;               // plate centre
+  const zFace = zBack - plate * 1.55;           // plate's outer face
 
   // --- plate shapes -------------------------------------------------
   const plateNode =
@@ -122,7 +123,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
   // --- lens positions ----------------------------------------------
   const gap = count === 2 ? 1.0 : 1.15;
   const ys = count === 2 ? [y + gap / 2, y - gap / 2] : [y + gap, y, y - gap];
-  const lensZ = zBack - plate * 1.15;
+  const lensZ = zFace - 0.012;
   const lensScale = layout === 'ultra' ? 1.28 : model.id === 'fold-1' ? 0.82 : 1;
 
   const mult = layout === 'rings' ? 1.5 : 1; // concentric ring shell
@@ -133,7 +134,7 @@ export function CameraIsland({ model, mats, zBack, T }) {
       {ys.map((ly, i) => (
         <group key={i} position={[x, ly, lensZ]}>
           {layout === 'rings' && (
-            <mesh material={mats.ringTextured} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.055]}>
+            <mesh material={mats.ringTextured} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.05]}>
               <cylinderGeometry args={[0.56, 0.56, 0.06, 48]} />
             </mesh>
           )}
@@ -148,26 +149,26 @@ export function CameraIsland({ model, mats, zBack, T }) {
 
       {/* flash */}
       {layout === 'pillFloat' ? (
-        <group position={[x + w / 2 + 0.42, y + 0.15, zBack - plate * 1.1]}>
+        <group position={[x + w / 2 + 0.42, y + 0.15, zFace - 0.006]}>
           <Flash mats={mats} s={1.05} />
         </group>
       ) : layout === 'ultra' ? (
-        <group position={[x + 0.72, y - 0.05, zBack - plate * 1.1]}>
+        <group position={[x + 0.72, y - 0.05, zFace - 0.006]}>
           <Flash mats={mats} s={1} />
         </group>
       ) : layout === 'dual' ? (
-        <group position={[x + 0.95, y + 0.2, zBack - plate * 1.1]}>
+        <group position={[x + 0.95, y + 0.2, zFace - 0.006]}>
           <Flash mats={mats} s={0.95} />
         </group>
       ) : (
-        <group position={[x + w / 2 + 0.34, y + 0.42, zBack - plate * 1.1]}>
+        <group position={[x + w / 2 + 0.34, y + 0.42, zFace - 0.006]}>
           <Flash mats={mats} s={0.95} />
         </group>
       )}
 
       {/* mic dot */}
       <mesh
-        position={[x + (layout === 'ultra' ? 0.72 : w / 2 + 0.3), y - 0.72, zBack - plate * 1.05]}
+        position={[x + (layout === 'ultra' ? 0.72 : w / 2 + 0.3), y - 0.72, zFace - 0.004]}
         material={mats.dark}
       >
         <cylinderGeometry args={[0.06, 0.06, 0.05, 20]} />
@@ -185,7 +186,6 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   const cover = { w: coverW ?? model.coverW, h: coverH ?? model.coverH, kind: model.cover.kind };
   const kind = cover.kind;
   const zOut = -T / 2;
-  const plate = 0.16;
 
   const geo = useMemo(
     () => ({
@@ -197,140 +197,127 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
     []
   );
 
-  const screenGeo = useMemo(
-    () => splitScreenPlane(cover.w, cover.h, 0, 1),
-    [cover.w, cover.h]
-  );
+  const screenGeo = useMemo(() => splitScreenPlane(cover.w, cover.h, 0, 1), [cover.w, cover.h]);
   const bezelGeo = useMemo(
-    () => frameGeometry(cover.w + model.geo.coverBand * 2, cover.h + model.geo.coverBand * 2, 0.42, model.geo.coverBand * 0.9, 0.03),
+    () =>
+      frameGeometry(
+        cover.w + model.geo.coverBand * 2,
+        cover.h + model.geo.coverBand * 2,
+        0.42,
+        model.geo.coverBand * 0.9,
+        0.03
+      ),
     [cover.w, cover.h, model.geo.coverBand]
   );
 
-  const lensScale = model.id === 'flip-1' ? 0.85 : model.id === 'flip-3' ? 0.9 : 1;
+  const lensScale = model.id === 'flip-1' ? 0.82 : model.id === 'flip-3' ? 0.9 : 1;
 
-  /* --- layouts ---------------------------------------------------- */
-  /* local +y of the moving half runs from the hinge (0) to the free edge.
-     The cameras sit next to the hinge; the cover display fills the rest.  */
+  /* local +y runs from the fold (0) to the free end (half).  The camera band
+     always sits at the free end; the Flex Window fills the space below it.   */
+  const yTop = -half * 0.845;
+
+  const Screen = ({ x, y, w, h, band }) => (
+    <group position={[x, y, 0]}>
+      {band != null && (
+        <RB
+          args={[w + band * 2, h + band * 2, 0.1]}
+          radius={0.28}
+          smoothness={4}
+          position={[0, 0, zOut - 0.028]}
+          material={mats.bezel}
+        />
+      )}
+      <mesh
+        geometry={splitScreenPlane(w, h, 0, 1)}
+        material={mats.cover}
+        position={[0, 0, zOut - (band != null ? 0.085 : 0.008)]}
+        rotation={[0, Math.PI, Math.PI]}
+      />
+    </group>
+  );
 
   if (kind === 'pill') {
-    // Z Flip: 1.1" pill to the right of a horizontal dual camera, near the hinge
-    const y = half * 0.13;
+    /* Z Flip (1): horizontal dual camera with the 1.1" pill display beside it */
+    const camX = -width * 0.13;
     return (
       <group>
         <RB
-          args={[3.0, 1.4, plate * 2]}
-          radius={0.32}
+          args={[3.05, 1.42, 0.2]}
+          radius={0.34}
           smoothness={5}
-          position={[-width * 0.16, y, zOut - plate * 0.5]}
+          position={[camX, yTop, zOut - 0.05]}
           material={mats.frame}
           castShadow
         />
-        {[-0.66, 0.66].map((dx) => (
-          <group key={dx} position={[-width * 0.16 + dx, y, zOut - plate * 1.1]}>
+        {[-0.68, 0.68].map((dx) => (
+          <group key={dx} position={[camX + dx, yTop, zOut - 0.12]}>
             <Lens geo={geo} mats={mats} r={lensScale} style="dark" />
           </group>
         ))}
-        <Flash mats={mats} s={0.7} position={[-width * 0.16 + 1.42, y + 0.5, zOut - plate]} />
-        <mesh
-          geometry={screenGeo}
-          material={mats.cover}
-          position={[width * 0.18, y, zOut - 0.006]}
-          rotation={[0, Math.PI, Math.PI]}
-        />
-        <mesh
-          geometry={bezelGeo}
-          material={mats.bezel}
-          position={[width * 0.18, y, zOut - 0.003]}
-          rotation={[0, Math.PI, Math.PI]}
-        />
+        <Flash mats={mats} s={0.62} position={[camX + 1.32, yTop - 0.58, zOut - 0.08]} />
+        <Screen x={width * 0.3} y={yTop + 0.25} w={cover.w} h={cover.h} band={0.16} />
       </group>
     );
   }
 
   if (kind === 'strip') {
-    // Z Flip3 / Flip4: black visor band — display left, dual cameras right
-    const bandH = cover.h + 1.15;
-    const bandY = half * 0.12;
+    /* Z Flip3 / Flip4: black visor band — landscape display left, cameras right */
+    const bandH = 2.55;
+    const sw = Math.min(width - 1.5, cover.h * 0.92);
+    const sh = sw / Math.max(1.05, cover.h / cover.w);
     return (
       <group>
         <RB
-          args={[width - 0.34, bandH, 0.1]}
-          radius={0.32}
+          args={[width - 0.5, bandH, 0.11]}
+          radius={0.34}
           smoothness={4}
-          position={[0, bandY, zOut - 0.03]}
+          position={[0, yTop + 0.28, zOut - 0.03]}
           material={mats.bezel}
         />
-        <mesh
-          geometry={screenGeo}
-          material={mats.cover}
-          position={[-width * 0.17, bandY, zOut - 0.085]}
-          rotation={[0, Math.PI, Math.PI]}
-        />
-        {[0.42, -0.42].map((dy) => (
-          <group key={dy} position={[width * 0.28, bandY + dy, zOut - 0.09]}>
+        <Screen x={-width * 0.13} y={yTop + 0.28} w={sw} h={Math.min(sh, bandH - 0.55)} />
+        {[0.46, -0.46].map((dy) => (
+          <group key={dy} position={[width * 0.31, yTop + 0.28 + dy, zOut - 0.1]}>
             <Lens geo={geo} mats={mats} r={lensScale} style="dark" />
           </group>
         ))}
+        <Flash mats={mats} s={0.5} position={[width * 0.31, yTop - 0.72, zOut - 0.09]} />
       </group>
     );
   }
 
   if (kind === 'folder') {
-    // Z Flip5 / Flip6: folder-shaped Flex Window, vertical camera pair by the hinge
-    const cy = half * 0.56;
+    /* Z Flip5 / Flip6: 3.4" folder Flex Window with the camera pair in the
+       top-left corner of the cover, outside the window */
     return (
       <group>
-        <mesh
-          geometry={screenGeo}
-          material={mats.cover}
-          position={[-width * 0.05, cy, zOut - 0.006]}
-          rotation={[0, Math.PI, Math.PI]}
-        />
-        <mesh
-          geometry={bezelGeo}
-          material={mats.bezel}
-          position={[-width * 0.05, cy, zOut - 0.003]}
-          rotation={[0, Math.PI, Math.PI]}
-        />
-        {[0.34, -0.62].map((dy) => (
-          <group key={dy} position={[width * 0.34, half * 0.13 + dy, zOut - plate * 0.9]}>
+        <Screen x={width * 0.045} y={-half * 0.42} w={cover.w * 1.02} h={cover.h * 1.04} band={0.18} />
+        {[-0.68, 0.68].map((dx) => (
+          <group key={dx} position={[dx - width * 0.28, yTop + 0.1, zOut - 0.1]}>
             <Lens geo={geo} mats={mats} r={lensScale} style="polish" />
           </group>
         ))}
-        <Flash mats={mats} s={0.8} position={[width * 0.34, half * 0.13 + 1.05, zOut - plate * 0.7]} />
+        <Flash mats={mats} s={0.62} position={[width * 0.02, yTop + 0.1, zOut - 0.09]} />
       </group>
     );
   }
 
-  // full: Z Flip7 / Flip8 — edge-to-edge Flex Window, cameras inset near the hinge
-  const cy = half * 0.53;
+  /* full: Z Flip7 / Flip8 — edge-to-edge Flex Window wrapping around the cameras */
   return (
     <group>
-      <mesh
-        geometry={screenGeo}
-        material={mats.cover}
-        position={[0, cy, zOut - 0.006]}
-        rotation={[0, Math.PI, Math.PI]}
-      />
-      <mesh
-        geometry={bezelGeo}
-        material={mats.bezel}
-        position={[0, cy, zOut - 0.003]}
-        rotation={[0, Math.PI, Math.PI]}
-      />
+      <Screen x={0} y={-half * 0.455} w={cover.w * 1.04} h={cover.h * 1.05} band={0.05} />
       <RB
-        args={[cover.w * 0.46, cover.h * 0.2, 0.04]}
-        radius={0.22}
+        args={[3.05, 1.5, 0.06]}
+        radius={0.4}
         smoothness={4}
-        position={[-cover.w * 0.23, half * 0.11, zOut - 0.014]}
+        position={[-width * 0.24, yTop + 0.05, zOut - 0.05]}
         material={mats.bezel}
       />
-      {[-cover.w * 0.31, -cover.w * 0.15].map((x) => (
-        <group key={x} position={[x, half * 0.11, zOut - 0.03]}>
-          <Lens geo={geo} mats={mats} r={lensScale * 0.95} style="polish" />
+      {[-0.6, 0.62].map((dx) => (
+        <group key={dx} position={[dx - width * 0.24, yTop + 0.05, zOut - 0.1]}>
+          <Lens geo={geo} mats={mats} r={lensScale * 0.92} style="polish" />
         </group>
       ))}
-      <Flash mats={mats} s={0.66} position={[-cover.w * 0.065, half * 0.11, zOut - 0.028]} />
+      <Flash mats={mats} s={0.55} position={[width * 0.02, yTop + 0.05, zOut - 0.08]} />
     </group>
   );
 }
