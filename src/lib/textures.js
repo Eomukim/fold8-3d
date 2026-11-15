@@ -735,9 +735,9 @@ function drawSpineWordmark(text) {
     ctx.letterSpacing = `${Math.max(0, (H * 0.72 - base) / Math.max(1, text.length - 1))}px`;
   }
   /* engraved: a soft lit lower lip under a dark cut */
-  ctx.fillStyle = 'rgba(255,255,255,0.30)';
-  ctx.fillText(text, 1.4, 0);
-  ctx.fillStyle = 'rgba(9,11,16,0.80)';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(text, 1.8, 0);
+  ctx.fillStyle = 'rgba(6,8,12,0.94)';
   ctx.fillText(text, 0, 0);
   return c;
 }

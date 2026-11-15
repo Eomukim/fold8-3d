@@ -6,7 +6,7 @@ import {
   roundedRectOutline,
   chamferSlab,
   roundedFace,
-  hingePlateGeometry,
+  hingeShellGeometry,
 } from '../lib/shapes';
 import {
   innerDisplayTexture,
@@ -144,57 +144,82 @@ function useMaterials(model, colorwayId) {
       word: new THREE.MeshBasicMaterial({
         map: word,
         transparent: true,
-        opacity: 0.92,
+        opacity: 1.0,
         depthWrite: false,
         toneMapped: false,
         polygonOffset: true,
         polygonOffsetFactor: -4,
       }),
-      /* sapphire cover glass over a very dark barrel: a deep, near-black
-         disc with one soft blue catch-light — no bloomed white rim */
-      lens: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#04060a'),
+      /* the sapphire window over the stack: near-black glass with the thin
+         blue/violet coating bloom a real lens throws back */
+      lensGlass: new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#010204'),
         metalness: 0.0,
-        roughness: 0.22,
-        clearcoat: 0.35,
-        clearcoatRoughness: 0.16,
-        ior: 1.62,
-        specularIntensity: 0.28,
-        envMapIntensity: 0.16,
+        roughness: 0.11,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.1,
+        ior: 1.7,
+        specularIntensity: 0.42,
+        iridescence: 0.25,
+        iridescenceIOR: 1.32,
+        iridescenceThicknessRange: [200, 620],
+        envMapIntensity: 0.035,
       }),
       lensInner: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#080c15'),
-        metalness: 0.15,
+        color: new THREE.Color('#04060c'),
+        metalness: 0.2,
         roughness: 0.34,
-        clearcoat: 0.2,
-        clearcoatRoughness: 0.24,
-        envMapIntensity: 0.14,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 0.04,
       }),
-      /* black-anodised lens barrel with a hairline bright chamfer */
-      lensRing: new THREE.MeshPhysicalMaterial({
+      /* the bore inside the ring: matte black, light goes in and dies */
+      lensBore: new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color('#030407'),
+        metalness: 0.08,
+        roughness: 0.88,
+        envMapIntensity: 0.04,
+      }),
+      /* black-anodised barrel (early Folds' camera module) */
+      lensBarrel: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color('#0b0c11'),
-        metalness: 0.28,
-        roughness: 0.4,
-        clearcoat: 0.2,
-        clearcoatRoughness: 0.2,
-        envMapIntensity: 0.24,
-      }),
-      lensRim: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(c.ring).multiplyScalar(0.34),
-        metalness: 1,
+        metalness: 0.42,
         roughness: 0.34,
-        clearcoat: 0.2,
-        clearcoatRoughness: 0.2,
-        envMapIntensity: 0.4,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.18,
+        envMapIntensity: 0.35,
+      }),
+      /* the machined ring: real metal, tight highlight, one crisp reflection */
+      lensRing: new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(c.ring).multiplyScalar(0.5),
+        metalness: 1,
+        roughness: 0.24,
+        clearcoat: 0.45,
+        clearcoatRoughness: 0.1,
+        envMapIntensity: 0.42,
+      }),
+      lensCatch: new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#b9c8ff'),
+        transparent: true,
+        opacity: 0.34,
+        toneMapped: false,
+        depthWrite: false,
+      }),
+      flashGloss: new THREE.MeshStandardMaterial({
+        color: new THREE.Color('#fffaf0'),
+        emissive: new THREE.Color('#fff2d8'),
+        emissiveIntensity: 0.5,
+        roughness: 0.12,
+        metalness: 0.05,
       }),
       inner: new THREE.MeshBasicMaterial({ map: innerTex, toneMapped: false }),
       cover: new THREE.MeshBasicMaterial({ map: coverTex, toneMapped: false }),
       flash: new THREE.MeshStandardMaterial({
-        color: new THREE.Color('#efe3cf'),
-        emissive: new THREE.Color('#ffe6b8'),
-        emissiveIntensity: 0.35,
-        roughness: 0.3,
-        metalness: 0.1,
+        color: new THREE.Color('#f6ecd8'),
+        emissive: new THREE.Color('#ffeccb'),
+        emissiveIntensity: 0.85,
+        roughness: 0.22,
+        metalness: 0.05,
       }),
     };
   }, [model, colorwayId, brushed, micro, innerTex, coverTex, word, conc]);
@@ -314,39 +339,50 @@ function useGeometry(model) {
     const coverH = Math.min(model.coverH, (book ? across : half) - 0.62);
     const rCover = Math.max(0.08, rOut * 0.78);
 
-    /* ---- hinge cover ------------------------------------------------
-       The cover is a flat plate lying on the chord between the two back-face
-       edges. Its width is exactly that chord, so its ends always land on the
-       two backs: closed it spans the whole folded thickness (the wide band
-       that carries the wordmark), and it narrows to a tuck strip as the device
-       opens. The plate frame turns with half the fold, like the real cover. */
+    /* ---- hinge spine ------------------------------------------------
+       The cover is a curved shell of armoured aluminium centred on the fold
+       axis, section = an arc that spans exactly the angle between the two back
+       faces. Closed it wraps the whole folded edge (a round D), at a right
+       angle it fills the wedge between the two backs, and open flat it rolls
+       away into the body leaving a hairline strip on the seam — the spine is
+       never a flat plate and never pokes past the silhouette. It turns by half
+       the fold, like the real cover, so it always bisects the gap. */
     const hinge = model.hinge ?? { protrude: 0.02 };
-    const Ra = T + gap / 2; // axis -> back face
-    const plateT = 0.042 + Math.min(0.02, hinge.protrude ?? 0);
+    const Ra = T + gap / 2; // axis -> back face of the body
+    const plateT = 0.042; // nominal cover thickness (kept for the glass inset)
+    const Rback = Ra + 0.0075; // outer surface of the back glass
+    const protrude = Math.min(0.026, Math.max(0.006, hinge.protrude ?? 0.018));
+    const Ro = Rback + protrude; // outer face of the spine
     const hingeLength = across * 0.952;
-    const plateR = Math.min(0.085, Math.max(0.05, plateT * 1.6));
-    const overhang = 0.024; // tucks a hair under the back glass: no light gap
-    const LADDER = SEG.tier === 'low' ? 9 : 17;
-    const plateCurve = SEG.tier === 'low' ? 5 : 9;
+    const shellT = Math.max(0.028, Math.min(0.075, T * 0.12));
+    /* when the device is open the cover is a 2.3 mm strip over the seam band */
+    const minSpan = 2 * Math.asin(Math.min(0.5, 0.115 / Ro));
+    const LADDER = SEG.tier === 'low' ? 9 : 19;
+    const shellSegsU = SEG.tier === 'low' ? 22 : 44;
     const spine = [];
-    const apothem = [];
     for (let i = 0; i < LADDER; i += 1) {
       const a = (i / (LADDER - 1)) * Math.PI; // 0 = flat open, pi = closed
-      const w = Math.max(0.3, 2 * Ra * Math.sin(a / 2) + overhang * 2);
+      const span = Math.max(minSpan, a);
       spine.push(
-        hingePlateGeometry(w, hingeLength, plateT, plateR, Math.min(0.016, plateT * 0.34), plateCurve)
+        hingeShellGeometry({
+          Ro,
+          thick: shellT,
+          span,
+          len: hingeLength,
+          segsU: shellSegsU,
+          segsV: 3,
+          capH: Math.min(0.3, Math.max(0.16, across * 0.019)),
+          groove: 0.012,
+          grooveW: 0.045,
+        })
       );
-      apothem.push(Ra * Math.cos(a / 2));
     }
     const wordLength = Math.min(2.2, across * 0.3);
     const wordWidth = 0.152;
-    /* the wordmark plane must face out of the cover (-z in the hinge frame)
-       while keeping the texture unmirrored from outside */
+    /* the wordmark plane faces out of the cover (-z in the hinge frame); a pure
+       rotation keeps the letters readable from outside, never mirrored */
     const wordGeo = new THREE.PlaneGeometry(wordWidth, wordLength);
     wordGeo.rotateY(Math.PI);
-    const wordUV = wordGeo.attributes.uv;
-    for (let i = 0; i < wordUV.count; i += 1) wordUV.setX(i, 1 - wordUV.getX(i));
-    wordUV.needsUpdate = true;
 
     return {
       T,
@@ -397,7 +433,7 @@ function useGeometry(model) {
         1
       ),
       spine,
-      apothem,
+      Ro,
       plateT,
       word: wordGeo,
       wordLength,
@@ -533,9 +569,8 @@ function BottomEdge({ mats, T, cx, cy, width, flipAxis = false }) {
 
 function Hinge({ mats, geo, form, spineRef, wordRef, frameRef }) {
   const rot = form === 'flip' ? Math.PI / 2 : 0;
-  /* the cover plate lies on the chord between the back edges: its outer face
-     is (apothem + plate thickness) away from the fold axis */
-  const zPlate = -geo.apothem[0];
+  /* the shell is built about the fold axis itself, so it needs no offset: the
+     frame group (which turns by half the fold) keeps it centred in the gap */
   return (
     <group position={[0, 0, geo.pivotZ]}>
       <group ref={frameRef}>
@@ -543,7 +578,6 @@ function Hinge({ mats, geo, form, spineRef, wordRef, frameRef }) {
           <mesh
             ref={spineRef}
             geometry={geo.spine[0]}
-            position={[0, 0, zPlate]}
             material={mats.hinge}
             userData={{ dbg: 'hinge' }}
             castShadow
@@ -553,7 +587,7 @@ function Hinge({ mats, geo, form, spineRef, wordRef, frameRef }) {
             ref={wordRef}
             geometry={geo.word}
             material={mats.word}
-            position={[0, 0, zPlate - geo.plateT - 0.0025]}
+            position={[0, 0, -(geo.Ro + 0.004)]}
             renderOrder={4}
           />
         </group>
@@ -634,10 +668,14 @@ export default function DeviceModel({ model }) {
       const idx = Math.round(t * (geos.spine.length - 1));
       const want = geos.spine[idx];
       if (spineRef.current.geometry !== want) spineRef.current.geometry = want;
-      const zPlate = -geos.apothem[idx];
-      if (Math.abs(spineRef.current.position.z - zPlate) > 1e-6) spineRef.current.position.z = zPlate;
+      /* the wordmark is engraved on the crown of the spine: it fades in only
+         once the cover is wide enough to carry the letters, and never shows
+         on the hairline seam of a flat-open device */
       if (wordRef.current) {
-        wordRef.current.position.z = zPlate - geos.plateT - 0.0025;
+        const width = 2 * geos.Ro * Math.sin(Math.min(Math.PI, a) / 2);
+        const k = clamp((width - 0.2) / 0.22, 0, 1);
+        wordRef.current.visible = k > 0.02;
+        mats.word.opacity = 0.92 * k;
       }
     }
 

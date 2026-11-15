@@ -343,6 +343,162 @@ function addSpineCaps({ pos, nor, uv, idx, n, radius, halfSpan, length }) {
 }
 
 /**
+ * Hinge spine shell — the curved armour-aluminium cover that wraps the fold.
+ *
+ * The section is an arc about the fold axis: the outer skin sits at `Ro`, the
+ * inner skin `thick` below it, and the band spans `span` radians symmetric
+ * about the outward (-z) direction, so its two ends land exactly on the two
+ * back faces and the cover can never protrude past the body silhouette.
+ * The band thins towards both ends (a cover tapers onto the glass) and carries
+ * two machined parting grooves near its ends — the hinge caps.
+ *
+ * Local frame: fold axis = y through the origin, outward = -z.
+ */
+export function hingeShellGeometry(o) {
+  const Ro = Math.max(0.02, o.Ro);
+  const thick = Math.max(0.004, o.thick ?? 0.05);
+  const span = Math.max(0.0008, o.span ?? 1);
+  const len = Math.max(0.1, o.len);
+  const segsU = Math.max(10, o.segsU ?? 48);
+  const segsV = Math.max(2, o.segsV ?? 4);
+  const capH = o.capH ?? 0.24; // distance of the parting groove from each end
+  const groove = o.groove ?? 0.016;
+  const grooveW = o.grooveW ?? 0.05;
+  const endChamfer = o.endChamfer ?? 0.02;
+  const taper = o.taper ?? 0.3; // how far in from each end the cover thins
+  const minT = o.minT ?? 0.34; // end thickness as a share of `thick`
+
+  /* thickness factor across the arc: full in the middle, thinner at the ends */
+  const tf = (a) => {
+    const e = Math.min(a + span / 2, span / 2 - a);
+    const t = Math.min(1, e / Math.max(1e-4, taper * span * 0.5));
+    const s = t * t * (3 - 2 * t);
+    return minT + (1 - minT) * s;
+  };
+
+  /* outer radius along the axis: two narrow parting grooves + a chamfer at the
+     very ends so the cover rolls off instead of ending on a sharp lip */
+  const roAt = (y) => {
+    let r = Ro;
+    const dEnd = len / 2 - Math.abs(y);
+    if (dEnd < endChamfer) {
+      const t = 1 - dEnd / endChamfer;
+      r -= endChamfer * 0.5 * t * t;
+    }
+    for (const cy of [-len / 2 + capH, len / 2 - capH]) {
+      const d = Math.abs(y - cy) / grooveW;
+      if (d < 1) r -= groove * (1 - d * d);
+    }
+    return r;
+  };
+
+  const pos = [];
+  const nor = [];
+  const uv = [];
+  const idx = [];
+  const push = (x, y, z, nx, ny, nz, u, v) => {
+    pos.push(x, y, z);
+    nor.push(nx, ny, nz);
+    uv.push(u, v);
+    return pos.length / 3 - 1;
+  };
+  const sinA = (a) => Math.sin(a);
+  const cosA = (a) => -Math.cos(a);
+
+  /* ---- outer skin ---- */
+  const outer = [];
+  for (let j = 0; j <= segsV; j += 1) {
+    const v = j / segsV;
+    const y = (v - 0.5) * len;
+    const r = roAt(y);
+    const row = [];
+    for (let i = 0; i <= segsU; i += 1) {
+      const t = i / segsU;
+      const a = (t - 0.5) * span;
+      row.push(push(r * sinA(a), y, r * cosA(a), sinA(a), 0, cosA(a), t, v));
+    }
+    outer.push(row);
+  }
+  for (let j = 0; j < segsV; j += 1) {
+    for (let i = 0; i < segsU; i += 1) {
+      const a = outer[j][i];
+      const b = outer[j][i + 1];
+      const c = outer[j + 1][i + 1];
+      const d = outer[j + 1][i];
+      idx.push(a, d, c, a, c, b);
+    }
+  }
+
+  /* ---- inner skin (facing the fold axis) ---- */
+  const inner = [];
+  for (let j = 0; j <= segsV; j += 1) {
+    const v = j / segsV;
+    const y = (v - 0.5) * len;
+    const ro = roAt(y);
+    const row = [];
+    for (let i = 0; i <= segsU; i += 1) {
+      const t = i / segsU;
+      const a = (t - 0.5) * span;
+      const r = ro - thick * tf(a);
+      row.push(push(r * sinA(a), y, r * cosA(a), -sinA(a), 0, -cosA(a), t, v));
+    }
+    inner.push(row);
+  }
+  for (let j = 0; j < segsV; j += 1) {
+    for (let i = 0; i < segsU; i += 1) {
+      const a = inner[j][i];
+      const b = inner[j][i + 1];
+      const c = inner[j + 1][i + 1];
+      const d = inner[j + 1][i];
+      idx.push(a, b, c, a, c, d);
+    }
+  }
+
+  /* ---- side walls where the band leaves the two backs ---- */
+  const wall = (side) => {
+    const i = side < 0 ? 0 : segsU;
+    const a = (side < 0 ? -0.5 : 0.5) * span;
+    const nx = side * Math.cos(a);
+    const nz = -side * Math.sin(a);
+    for (let j = 0; j < segsV; j += 1) {
+      const o0 = outer[j][i];
+      const o1 = outer[j + 1][i];
+      const i0 = inner[j][i];
+      const i1 = inner[j + 1][i];
+      void nx;
+      void nz;
+      if (side < 0) idx.push(o0, i0, i1, o0, i1, o1);
+      else idx.push(o0, o1, i1, o0, i1, i0);
+    }
+  };
+  wall(-1);
+  wall(1);
+
+  /* ---- the two rectangular end faces of the cover ---- */
+  const cap = (j, sign) => {
+    for (let i = 0; i < segsU; i += 1) {
+      const o0 = outer[j][i];
+      const o1 = outer[j][i + 1];
+      const i0 = inner[j][i];
+      const i1 = inner[j][i + 1];
+      if (sign > 0) idx.push(o0, o1, i1, o0, i1, i0);
+      else idx.push(o0, i0, i1, o0, i1, o1);
+    }
+  };
+  cap(0, -1);
+  cap(segsV, 1);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeBoundingBox();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+/**
  * Hinge cover plate: a flat rounded rectangle with a fine machined chamfer on
  * its outer face. Built so the outer face sits at z = 0 and the plate fills
  * z = [-thickness, 0] — the hinge frame then places it on the chord between
