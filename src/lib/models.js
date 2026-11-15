@@ -605,6 +605,7 @@ export const CAMERA_PRESETS = {
   overview: { offset: [26, 8.6, 46] },
   hinge: { offset: [-14, -5.4, -19] },
   camera: { offset: [-15, 10, -27] },
+  cameraFlip: { offset: [-15, 10, 27] },
   cover: { offset: [-24, 5, -36] },
   coverFront: { offset: [-24, 5, 36] },
 };

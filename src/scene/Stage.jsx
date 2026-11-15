@@ -27,11 +27,20 @@ function metrics(model) {
 function presetTarget(preset, model) {
   const T = model.dims.tOpen / 2;
   const { vHalf } = metrics(model);
+  /* how far the body slides to stay centred at the current fold angle */
+  const fold = useShowcase.getState().foldTarget ?? 0;
+  const a = Math.PI * (1 - fold / 180);
+  const shift = (model.half / 2) * ((1 - Math.cos(a)) / 2);
   if (preset === 'hinge') return new THREE.Vector3(0, 0, -T * 0.2);
   if (preset === 'camera') {
-    return model.form === 'book'
-      ? new THREE.Vector3(model.cam.x, model.cam.y - vHalf * 0.06, -T)
-      : new THREE.Vector3(model.cover.w * 0.22, model.half * 0.12, -T);
+    if (model.form === 'book') return new THREE.Vector3(model.cam.x - shift, model.cam.y, -T);
+    /* clamshell: the pair lives on the cover face, near the top of the closed
+       body; open, it stays at the top of the moving half */
+    const gap = Math.max(0.02, model.dims.tFold - 2 * model.dims.tOpen);
+    const pivotZ = T + gap / 2;
+    const y = model.half - 0.95 - shift;
+    const z = 2 * pivotZ + T + 0.1;
+    return new THREE.Vector3(-model.across * 0.235, y, Math.min(z, Math.max(T * 2, z)));
   }
   if (preset === 'cover') {
     if (model.form === 'book') return new THREE.Vector3(-model.half / 2, 0, -T);
@@ -60,7 +69,10 @@ function CameraRig({ controls }) {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.__freezeCam) return;
     const isFlipFront = model.form === 'flip' && preset === 'cover';
-    const p = (isFlipFront ? CAMERA_PRESETS.coverFront : CAMERA_PRESETS[preset]) ?? CAMERA_PRESETS.overview;
+    let p = (isFlipFront ? CAMERA_PRESETS.coverFront : CAMERA_PRESETS[preset]) ?? CAMERA_PRESETS.overview;
+    /* the clamshell's camera face points the other way, so the camera preset
+       has to stand on that side of the body, not behind it */
+    if (model.form === 'flip' && preset === 'camera') p = CAMERA_PRESETS.cameraFlip;
     const target = presetTarget(preset, model);
     const pos = target.clone().add(new THREE.Vector3(...p.offset).multiplyScalar(fit));
     anim.current = {
