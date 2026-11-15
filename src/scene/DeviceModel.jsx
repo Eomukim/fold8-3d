@@ -172,20 +172,20 @@ function useMaterials(model, colorwayId) {
       }),
       /* black-anodised lens barrel with a hairline bright chamfer */
       lensRing: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#0a0b10'),
-        metalness: 0.55,
-        roughness: 0.3,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.14,
-        envMapIntensity: 0.34,
+        color: new THREE.Color('#0b0c11'),
+        metalness: 0.28,
+        roughness: 0.4,
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 0.24,
       }),
       lensRim: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(c.ring).multiplyScalar(0.9),
+        color: new THREE.Color(c.ring).multiplyScalar(0.34),
         metalness: 1,
-        roughness: 0.19,
-        clearcoat: 0.6,
-        clearcoatRoughness: 0.1,
-        envMapIntensity: 0.95,
+        roughness: 0.34,
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 0.4,
       }),
       inner: new THREE.MeshBasicMaterial({ map: innerTex, toneMapped: false }),
       cover: new THREE.MeshBasicMaterial({ map: coverTex, toneMapped: false }),
@@ -366,13 +366,13 @@ function useGeometry(model) {
       fixed: {
         body: chamferSlab(fixedOutline, T, c),
         front: roundedFace(faceOutline(1, lip, lip * 0.6), 0, 1, 0, 1),
-        back: chamferSlab(faceOutline(1, 0.058, plateT + 0.052), 0.034, 0.011),
+        back: chamferSlab(faceOutline(1, 0.092, plateT + 0.075), 0.034, 0.011),
         screen: roundedFace(screenOutline(1), book ? 0.5 : 0, book ? 1 : 1, book ? 0 : 0.5, book ? 1 : 1),
       },
       moving: {
         body: chamferSlab(movingOutline, T, c),
         front: roundedFace(faceOutline(-1, lip, lip * 0.6), 0, 1, 0, 1),
-        back: chamferSlab(faceOutline(-1, 0.058, plateT + 0.052), 0.034, 0.011),
+        back: chamferSlab(faceOutline(-1, 0.092, plateT + 0.075), 0.034, 0.011),
         screen: roundedFace(screenOutline(-1), book ? 0 : 0, book ? 0.5 : 1, book ? 0 : 0, book ? 1 : 0.5),
       },
       coverScreen: roundedFace(
@@ -657,7 +657,7 @@ export default function DeviceModel({ model }) {
       <group userData={{ dbg: 'fixed' }}>
         <mesh geometry={geos.fixed.body} material={mats.frame} castShadow receiveShadow userData={{ dbg: 'fixedBody' }} />
         <mesh geometry={geos.fixed.front} material={mats.frontGlass} position={[0, 0, faceZ]} />
-        <mesh geometry={geos.fixed.back} material={mats.back} position={[0, 0, -T / 2 - 0.0025 + 0.018]} />
+        <mesh geometry={geos.fixed.back} material={mats.back} position={[0, 0, -T / 2 - 0.0085 + 0.018]} />
         <mesh
           geometry={geos.fixed.screen}
           material={mats.inner}
@@ -723,7 +723,7 @@ export default function DeviceModel({ model }) {
         <group position={[0, 0, -pivotZ]}>
           <mesh geometry={geos.moving.body} material={mats.frame} castShadow receiveShadow userData={{ dbg: 'movingBody' }} />
           <mesh geometry={geos.moving.front} material={mats.frontGlass} position={[0, 0, faceZ]} />
-          <mesh geometry={geos.moving.back} material={mats.back} position={[0, 0, -T / 2 - 0.0025 + 0.018]} />
+          <mesh geometry={geos.moving.back} material={mats.back} position={[0, 0, -T / 2 - 0.0085 + 0.018]} />
           <mesh
             geometry={geos.moving.screen}
             material={mats.inner}

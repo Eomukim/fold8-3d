@@ -22,8 +22,8 @@ function LensStack({ mats, r = 1, polished = false }) {
   return (
     <group scale={[r, r, r]}>
       {/* bright machined seat where the barrel meets the island */}
-      <mesh material={mats.lensRim} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.004]}>
-        <cylinderGeometry args={[R * 0.985, R * 1.015, 0.014, seg]} />
+      <mesh material={mats.lensRim} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.006]}>
+        <cylinderGeometry args={[R * 0.965, R * 0.995, 0.01, seg]} />
       </mesh>
       {/* black anodised barrel */}
       <mesh material={mats.lensRing} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -(D - 0.01) / 2]}>
@@ -53,8 +53,8 @@ function LensStack({ mats, r = 1, polished = false }) {
         <circleGeometry args={[R * 0.15, SEG.dot * 2]} />
       </mesh>
       {polished && (
-        <mesh material={mats.lensRim} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.012]}>
-          <cylinderGeometry args={[R * 1.02, R * 1.055, 0.012, seg]} />
+        <mesh material={mats.lensRing} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.012]}>
+          <cylinderGeometry args={[R * 1.015, R * 1.045, 0.012, seg]} />
         </mesh>
       )}
     </group>
@@ -160,7 +160,7 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   const bevel = (w, h, r) =>
     frameGeometry(w + 0.1, h + 0.1, Math.max(0.05, r + 0.05), 0.05, 0.022);
 
-  const Window = ({ x, y, w, h, band = 0.16, r = rGlass, dz = 0 }) => (
+  const Window = ({ x, y, w, h, band = 0.16, r = rGlass, dz = 0, rim = true }) => (
     <group position={[x, y, 0]}>
       <RB
         args={[w + band * 2, h + band * 2, 0.07]}
@@ -169,7 +169,16 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
         position={[0, 0, zG + 0.04 + dz]}
         material={mats.bezel}
       />
-      <mesh geometry={bevel(w, h, r)} material={mats.frame} position={[0, 0, zG - 0.003 + dz]} />
+      {rim ? (
+        <mesh geometry={bevel(w, h, r)} material={mats.frame} position={[0, 0, zG - 0.009 + dz]} />
+      ) : (
+        <mesh
+          geometry={roundedFace(roundedRectOutline(w + 0.09, h + 0.09, r + 0.045, 0, 0), 0, 1, 0, 1)}
+          material={mats.bezelFlat}
+          position={[0, 0, zG + 0.001 + dz]}
+          rotation={[0, Math.PI, Math.PI]}
+        />
+      )}
       <mesh
         geometry={roundedFace(roundedRectOutline(w, h, r, 0, 0), 0, 1, 0, 1)}
         material={mats.cover}
@@ -267,15 +276,15 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   const vy = -half + 0.95;
   return (
     <group>
-      <Window x={0} y={-half * 0.44} w={cover.w * 1.02} h={cover.h} band={0.07} />
+      <Window x={0} y={-half * 0.44} w={cover.w * 1.02} h={cover.h} band={0.09} rim={false} />
       {[-0.6, 0.6].map((dx) => (
         <group key={dx}>
           <mesh
-            position={[dx - width * 0.235, vy, zG - 0.002]}
-            material={mats.dark}
+            position={[dx - width * 0.235, vy, zG - 0.0015]}
+            material={mats.bezelFlat}
             rotation={[Math.PI / 2, 0, 0]}
           >
-            <cylinderGeometry args={[0.52, 0.52, 0.01, SEG.lens]} />
+            <cylinderGeometry args={[0.60, 0.60, 0.008, SEG.lens]} />
           </mesh>
           <Cam x={dx - width * 0.235} y={vy} s={lensScale * 0.94} polished />
         </group>
