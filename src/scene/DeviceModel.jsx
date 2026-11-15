@@ -80,22 +80,22 @@ function useMaterials(model, colorwayId) {
       /* the hinge block: anodised, micro-blasted aluminium with a fine
          machined sheen — it has to read as one solid milled part */
       hinge: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(c.hinge).multiplyScalar(0.95),
-        metalness: 0.86,
-        roughness: fin.matte ? 0.42 : 0.36,
+        color: new THREE.Color(c.hinge),
+        metalness: 0.58,
+        roughness: fin.matte ? 0.44 : 0.38,
         roughnessMap: brushed,
-        clearcoat: 0.12,
+        clearcoat: 0.16,
         clearcoatRoughness: 0.3,
-        envMapIntensity: 1.35,
+        envMapIntensity: 1.7,
       }),
       hingeCap: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(c.hinge),
-        metalness: 0.88,
-        roughness: fin.matte ? 0.36 : 0.3,
+        metalness: 0.62,
+        roughness: fin.matte ? 0.38 : 0.32,
         roughnessMap: brushed,
-        clearcoat: 0.18,
+        clearcoat: 0.22,
         clearcoatRoughness: 0.22,
-        envMapIntensity: 1.5,
+        envMapIntensity: 1.8,
       }),
       ringDark: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(c.ringDark),
