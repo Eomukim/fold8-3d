@@ -1,192 +1,218 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
-import { roundedRectOutline, roundedFace, frameGeometry, hingePlateGeometry } from '../lib/shapes';
+import {
+  roundedRectOutline,
+  roundedFace,
+  frameGeometry,
+  padGeometry,
+  lensDomeGeometry,
+} from '../lib/shapes';
 import { SEG } from '../lib/perf';
 
 const SM = (n) => Math.max(2, Math.round(n * SEG.smooth));
 
 /* ------------------------------------------------------------------ */
 /*  lens stack                                                        */
-/*  A real phone camera is not a disc: it is a machined metal ring     */
-/*  standing proud of the glass, a dark tapering bore inside it, and   */
-/*  the lens element sunk at the bottom of that bore. Outward is -z.   */
+/*                                                                    */
+/*  Read off the real rear cameras: the glass is the camera — a wide   */
+/*  sapphire window that fills almost the whole barrel, a hairline     */
+/*  machined lip around it, and a dark throat between the two. The old */
+/*  stack spent a third of its radius on a grey metal donut, which is  */
+/*  what made it read as a cheap toy ring.                            */
 /* ------------------------------------------------------------------ */
 
-function LensStack({ mats, R = 0.5, D = 0.08, ring = 'polished' }) {
+function LensStack({ mats, R = 0.5, D = 0.06, ring = 'polished', halo = 0 }) {
   const seg = SEG.lens;
-  const segS = SEG.small;
-  const metal = ring === 'dark' ? mats.lensBarrel : mats.lensRing;
-  const zF = -D;             // front (outer) face of the ring
-  const rFace = R * 0.995;   // outer edge of that face
-  const rBore = R * 0.87;    // inner edge of the flat metal face
-  const rBevel = R * 0.76;   // inner bright bevel
-  const rWall = R * 0.70;    // drop into the barrel
-  const zGlass = zF + 0.03;  // the element sits a little below the rim
+  const metal = ring === 'dark' ? mats.lensBarrel : ring === 'match' ? mats.ring : mats.lensRing;
+  const lipR = R * 0.99;
+  const glassR = R * 0.93;
+  const zRim = -D;
+  const zGlass = -D + Math.min(0.016, D * 0.32);
+  const dome = useMemo(() => lensDomeGeometry(glassR, glassR * 0.34, SEG.lensGlass[0]), [glassR]);
+
   return (
     <group>
-      {/* shadowed seat ring: the lens sits in the surface, not on it */}
-      <mesh material={mats.lensBore} rotation={[Math.PI, 0, 0]} position={[0, 0, 0.0012]}>
-        <ringGeometry args={[R * 1.0, R * 1.1, seg]} />
+      {/* shadow line where the barrel is seated in the pad */}
+      <mesh material={mats.lensBore} rotation={[Math.PI, 0, 0]} position={[0, 0, 0.006]}>
+        <ringGeometry args={[R * 0.965, R * (halo > 0 ? halo : 1.02), seg]} />
       </mesh>
-      {/* hairline seat where the barrel meets the device */}
-      <mesh material={mats.lensBore} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.004]}>
-        <cylinderGeometry args={[R * 1.03, R * 1.06, 0.012, seg, 1, true]} />
+      {halo > 0 && (
+        <mesh material={mats.lensBarrel} rotation={[Math.PI, 0, 0]} position={[0, 0, 0.0055]}>
+          <ringGeometry args={[R * 1.02, R * halo, seg]} />
+        </mesh>
+      )}
+      {/* barrel wall: sunk a little into the pad so its base never z-fights */}
+      <mesh material={mats.lensBarrel} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -D / 2 + 0.006]}>
+        <cylinderGeometry args={[lipR, R, D + 0.012, seg, 1, true]} />
       </mesh>
-      {/* the barrel wall standing proud of the glass */}
-      <mesh material={metal} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, zF / 2 + 0.004]}>
-        <cylinderGeometry args={[rFace - R * 0.02, R, -zF - 0.008, seg, 1, true]} />
+      {/* the machined lip: one crisp rounded ring */}
+      <mesh material={metal} position={[0, 0, zRim]}>
+        <torusGeometry args={[lipR - R * 0.014, R * 0.016, 6, seg]} />
       </mesh>
-      {/* flat machined face of the ring */}
-      <mesh material={metal} rotation={[Math.PI, 0, 0]} position={[0, 0, zF]}>
-        <ringGeometry args={[rBore, rFace, seg]} />
+      {/* dark throat between the lip and the glass */}
+      <mesh material={mats.lensBore} rotation={[Math.PI, 0, 0]} position={[0, 0, zGlass + 0.003]}>
+        <ringGeometry args={[glassR * 0.99, lipR * 1.005, seg]} />
       </mesh>
-      {/* the chamfer inside the ring — the bright line a real camera shows */}
-      <mesh material={metal} rotation={[Math.PI, 0, 0]} position={[0, 0, zF + 0.0006]}>
-        <ringGeometry args={[rBevel, rBore, seg]} />
-      </mesh>
-      <mesh material={metal} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, zF + 0.009]}>
-        <cylinderGeometry args={[rBevel, rBore, 0.018, seg, 1, true]} />
-      </mesh>
-      {/* black bore dropping away behind the chamfer */}
-      <mesh material={mats.lensBore} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, zF + 0.022]}>
-        <cylinderGeometry args={[rWall, rBevel, 0.026, seg, 1, true]} />
-      </mesh>
-      {/* the element: dark glass sunk at the bottom of the bore */}
-      <mesh material={mats.lensGlass} rotation={[Math.PI, 0, 0]} position={[0, 0, zGlass]}>
-        <circleGeometry args={[rWall, seg * 2]} />
-      </mesh>
-      {/* inner barrel ring, iris and aperture, caught behind the glass */}
-      <mesh material={mats.lensInner} rotation={[Math.PI, 0, 0]} position={[0, 0, zGlass + 0.0012]}>
-        <ringGeometry args={[rWall * 0.52, rWall * 0.9, seg]} />
-      </mesh>
-      <mesh material={mats.lensBore} rotation={[Math.PI, 0, 0]} position={[0, 0, zGlass + 0.0018]}>
-        <circleGeometry args={[rWall * 0.5, segS * 3]} />
-      </mesh>
-      {/* a single soft catch-light on the coating */}
-      <mesh rotation={[Math.PI, 0, 0]} position={[-rWall * 0.34, rWall * 0.3, zGlass + 0.0022]} material={mats.lensCatch}>
-        <circleGeometry args={[rWall * 0.14, segS * 2]} />
-      </mesh>
+      {/* the sapphire window itself */}
+      <mesh geometry={dome} material={mats.lensGlass} position={[0, 0, zGlass]} />
     </group>
   );
 }
 
 /* ------------------------------------------------------------------ */
 /*  flash                                                             */
+/*  A round window set into the glass: thin dark bezel, warm diffuser, */
+/*  no sticker ring around it.                                        */
 /* ------------------------------------------------------------------ */
 
-function Flash({ mats, s = 1, ring = false, ...rest }) {
+function Flash({ mats, s = 1, ...rest }) {
+  const seg = SEG.small * 2;
   return (
     <group scale={[s, s, s]} {...rest}>
-      {/* reflector bezel */}
-      <mesh material={mats.lensBarrel} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.012]}>
-        <cylinderGeometry args={[0.115, 0.125, 0.024, SEG.small, 1, true]} />
+      <mesh material={mats.lensBore} rotation={[Math.PI, 0, 0]} position={[0, 0, 0.006]}>
+        <ringGeometry args={[0.152, 0.176, seg]} />
       </mesh>
-      <mesh material={mats.lensBarrel} rotation={[Math.PI, 0, 0]} position={[0, 0, 0.0016]}>
-        <ringGeometry args={[0.082, 0.115, SEG.small * 2]} />
+      <mesh material={mats.lensBarrel} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.002]}>
+        <cylinderGeometry args={[0.156, 0.164, 0.024, seg, 1, true]} />
       </mesh>
-      {ring ? (
-        <mesh material={mats.flash} rotation={[Math.PI, 0, 0]} position={[0, 0, -0.0012]}>
-          <ringGeometry args={[0.042, 0.086, SEG.small * 3]} />
-        </mesh>
-      ) : (
-        <mesh material={mats.flash} rotation={[Math.PI, 0, 0]} position={[0, 0, -0.0012]}>
-          <circleGeometry args={[0.086, SEG.small * 3]} />
-        </mesh>
-      )}
-      {/* diffuser sheen + the little sensor dot beside the emitter */}
-      <mesh material={mats.flashGloss} rotation={[Math.PI, 0, 0]} position={[-0.014, 0.014, 0.0008]}>
-        <circleGeometry args={[0.03, SEG.small]} />
+      <mesh material={mats.flashFace} rotation={[Math.PI, 0, 0]} position={[0, 0, -0.0132]}>
+        <circleGeometry args={[0.156, seg * 2]} />
       </mesh>
     </group>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  per-model camera hardware (from the real product photos)          */
+/*  per-model camera hardware (proportions measured off product photos)*/
 /*                                                                    */
-/*  island: 'pill' | 'rect' | 'none'   — the raised camera platform   */
-/*  ring:   'polished' | 'dark'        — machined metal vs black bore */
+/*  island: 'pill' | 'dark-pill' | 'none'                              */
+/*  ring:   'polished' | 'dark' | 'match'  — machined metal / black /  */
+/*          colour-matched (Flip6, Fold6 style)                        */
+/*                                                                    */
+/*  w/h are derived from the lens size so the pad always hugs the      */
+/*  lenses the way the real ones do — never a wide flat plate with     */
+/*  small lenses in it.                                                */
 /* ------------------------------------------------------------------ */
 
+const spec = (lensR, pitch, count, o = {}) => ({
+  lensR,
+  pitch,
+  count,
+  w: o.w ?? 2 * lensR + 0.26,
+  h: o.h ?? (count - 1) * pitch + 2 * lensR + 0.46,
+  ...o,
+});
+
 export const CAM = {
-  /* Galaxy Fold (2019): a narrow black vertical module, 3 small lenses,
+  /* Galaxy Fold (2019): a narrow black vertical module, small lenses,
      flash as a separate dot under the module */
-  'fold-1': { island: 'dark-pill', w: 1.02, h: 3.1, plate: 0.1, lensR: 0.29, pitch: 0.86, ring: 'dark', flash: { dx: 0, dy: -2.12, s: 0.62 } },
-  /* Fold2: body-coloured island, big rings, flash beside the top lens */
-  'fold-2': { island: 'pill', w: 1.56, h: 3.9, plate: 0.15, lensR: 0.36, pitch: 1.13, ring: 'polished', flash: { dx: -0.86, dy: 1.3, s: 0.85 } },
-  /* Fold3/4: no island — three rings standing straight on the back glass,
+  'fold-1': spec(0.31, 0.9, 3, {
+    island: 'dark-pill',
+    w: 1.08,
+    h: 3.24,
+    plate: 0.11,
+    ring: 'dark',
+    flash: { dx: 0, dy: -2.15, s: 0.95 },
+  }),
+  /* Fold2: body-coloured pill, big rings, flash beside the top lens */
+  'fold-2': spec(0.55, 1.24, 3, {
+    island: 'pill',
+    plate: 0.1,
+    ring: 'polished',
+    flash: { dx: -0.98, dy: 1.28, s: 0.95 },
+  }),
+  /* Fold3/4/5: no island — the rings stand straight on the back glass,
      flash below the last lens */
-  'fold-3': { island: 'none', w: 1.4, h: 3.9, plate: 0.02, lensR: 0.35, pitch: 1.06, ring: 'polished', flash: { dx: 0, dy: -2.06, s: 0.72 } },
-  'fold-4': { island: 'none', w: 1.4, h: 3.95, plate: 0.02, lensR: 0.36, pitch: 1.08, ring: 'polished', flash: { dx: 0.02, dy: -2.1, s: 0.72 } },
-  /* Fold5: bare rings again, flash tucked above-right of the top lens */
-  'fold-5': { island: 'none', w: 1.4, h: 4.0, plate: 0.02, lensR: 0.38, pitch: 1.1, ring: 'polished', flash: { dx: -0.86, dy: 1.24, s: 0.85 } },
-  /* Fold6/7: a slim pill island in body colour with concentric-machined rings */
-  'fold-6': { island: 'pill', w: 1.5, h: 3.62, plate: 0.09, lensR: 0.42, pitch: 1.12, ring: 'polished', flash: { dx: -0.92, dy: 1.16, s: 1.0 } },
-  'fold-7': { island: 'pill', w: 1.56, h: 3.86, plate: 0.075, lensR: 0.44, pitch: 1.19, ring: 'polished', flash: { dx: -1.0, dy: 1.2, s: 1.0 } },
-  /* Fold8: dual camera — two large rings in one short pill, flash inside it */
-  'fold-8': { island: 'pill', w: 1.62, h: 2.9, plate: 0.095, lensR: 0.45, pitch: 1.34, ring: 'polished', flash: { dx: 0, dy: -1.52, s: 0.78, inside: true } },
-  /* Fold8 Ultra: the 200MP stack — three big rings, flash beside the middle */
-  'fold-8-ultra': { island: 'pill', w: 1.72, h: 3.9, plate: 0.11, lensR: 0.46, pitch: 1.2, ring: 'polished', flash: { dx: -1.05, dy: 1.12, s: 1.0 } },
+  'fold-3': spec(0.56, 1.26, 3, { island: 'none', plate: 0.0, ring: 'polished', flash: { dx: 0, dy: -2.2, s: 0.92 } }),
+  'fold-4': spec(0.57, 1.28, 3, { island: 'none', plate: 0.0, ring: 'polished', flash: { dx: 0.02, dy: -2.24, s: 0.92 } }),
+  'fold-5': spec(0.6, 1.34, 3, { island: 'none', plate: 0.0, ring: 'polished', flash: { dx: -0.98, dy: 1.34, s: 0.95 } }),
+  /* Fold6/7: a slim pill in body colour, colour-matched machined rings */
+  'fold-6': spec(0.66, 1.48, 3, {
+    island: 'pill',
+    plate: 0.085,
+    ring: 'match',
+    flash: { dx: -1.06, dy: 1.28, s: 1.0 },
+  }),
+  'fold-7': spec(0.72, 1.62, 3, {
+    island: 'pill',
+    plate: 0.08,
+    ring: 'polished',
+    flash: { dx: -1.16, dy: 1.4, s: 1.0 },
+  }),
+  /* Fold8: dual camera — two large rings in one short pill, flash inside */
+  'fold-8': spec(0.75, 1.6, 2, {
+    island: 'pill',
+    w: 1.78,
+    h: 3.78,
+    plate: 0.085,
+    ring: 'polished',
+    flash: { dx: 0, dy: -1.52, s: 0.95, inside: true },
+  }),
+  /* Fold8 Ultra: the 200MP stack — three big rings, flash beside the top */
+  'fold-8-ultra': spec(0.74, 1.66, 3, {
+    island: 'pill',
+    plate: 0.095,
+    ring: 'polished',
+    flash: { dx: -1.18, dy: 1.44, s: 1.0 },
+  }),
 };
 
-export function CameraIsland({ model, mats, zBack, T }) {
+export function CameraIsland({ model, mats, zBack }) {
   const { cam } = model;
   const s = CAM[model.id] ?? {};
-  const w = s.w ?? cam.w;
-  const h = s.h ?? cam.h;
-  const plate = s.plate ?? cam.plate ?? 0.1;
-  const count = cam.count ?? 3;
-  const lensR = s.lensR ?? 0.42;
-  const pitch = s.pitch ?? (h - lensR * 3) / Math.max(1, count - 1);
-  const radius = Math.min(w, h) / 2;
-  const t = plate + 0.04;
-  const zTop = zBack - plate;
+  const count = s.count ?? cam.count ?? 3;
+  const lensR = s.lensR ?? 0.5;
+  const pitch = s.pitch ?? (2 * lensR + 0.3) * 1.13;
+  const w = s.w ?? 2 * lensR + 0.26;
+  const h = s.h ?? (count - 1) * pitch + 2 * lensR + 0.46;
+  const plate = s.plate ?? 0.06;
+  const islandKind = s.island ?? 'pill';
+
+  const padGeo = useMemo(() => {
+    if (islandKind === 'none') return null;
+    const out = roundedRectOutline(w, h, Math.min(w, h) / 2 - 0.002, 0, 0, {
+      curveSegs: Math.max(8, SEG.curve),
+      step: 0.5,
+    });
+    return padGeometry(out, plate > 0 ? plate : 0.03, (plate > 0 ? plate : 0.03) * 0.96, 4);
+  }, [w, h, plate, islandKind]);
 
   const spots = Array.from({ length: count }, (_, i) => [
     cam.x,
     cam.y + ((count - 1) / 2) * pitch - i * pitch,
   ]);
-
-  const islandKind = s.island ?? 'pill';
-  const flashIn = s.flash?.inside;
-  const flash = s.flash ?? { dx: w / 2 + 0.4, dy: h / 2 - 0.6, s: 0.8 };
+  const flash = s.flash ?? { dx: w / 2 + 0.45, dy: h / 2 - 0.7, s: 0.9 };
+  const zTop = zBack - plate;
 
   return (
     <group userData={{ dbg: 'cams', modelId: model.id }}>
-      {islandKind !== 'none' && (
+      {padGeo && (
         <mesh
-          geometry={hingePlateGeometry(w, h, t, radius, 0.024, SM(6))}
+          geometry={padGeo}
           material={islandKind === 'dark-pill' ? mats.lensBarrel : mats.island}
-          position={[cam.x, cam.y, zTop + t]}
-          castShadow
+          position={[cam.x, cam.y, zTop]}
+          rotation={[Math.PI, 0, 0]}
           receiveShadow
         />
       )}
-      {spots.map(([lx, ly], i) => (
-        <group key={i} position={[lx, ly, zTop]}>
-          <LensStack mats={mats} R={lensR} D={0.072 + (s.plate ?? 0.1) * 0.2} ring={s.ring ?? 'polished'} />
+      {spots.map(([lx, ly]) => (
+        <group key={`l${ly.toFixed(2)}`} position={[lx, ly, zTop - 0.0008]}>
+          <LensStack mats={mats} R={lensR} D={0.058 + plate * 0.22} ring={s.ring ?? 'polished'} />
         </group>
       ))}
 
-      {!flashIn && (
-        <group position={[cam.x + flash.dx, cam.y + flash.dy, zTop - 0.004]}>
-          <Flash mats={mats} s={flash.s ?? 0.8} />
-        </group>
-      )}
-      {flashIn && (
-        <group position={[cam.x + flash.dx, cam.y + flash.dy, zTop - 0.002]}>
-          <Flash mats={mats} s={flash.s ?? 0.8} />
-        </group>
-      )}
+      <group position={[cam.x + flash.dx, cam.y + flash.dy, zTop - 0.0008]}>
+        <Flash mats={mats} s={flash.s ?? 0.9} />
+      </group>
 
-      {/* rear mic pinhole */}
+      {/* rear mic pinhole, at the foot of the island */}
       <mesh
-        position={[cam.x - w / 2 + 0.26, cam.y - h / 2 + 0.3, zTop - 0.002]}
+        position={[cam.x - w / 2 + 0.24, cam.y - h / 2 + 0.26, zTop + 0.001]}
         material={mats.dark}
         rotation={[Math.PI / 2, 0, 0]}
       >
-        <cylinderGeometry args={[0.028, 0.028, 0.012, SEG.dot]} />
+        <cylinderGeometry args={[0.026, 0.026, 0.012, SEG.dot]} />
       </mesh>
     </group>
   );
@@ -197,17 +223,18 @@ export function CameraIsland({ model, mats, zBack, T }) {
 /* ------------------------------------------------------------------ */
 
 const FLIP_CAM = {
-  /* Flip1: a raised horizontal module, two lenses and a flash beside them */
-  'flip-1': { lensR: 0.34, gap: 1.42, module: true },
-  /* Flip3/4: black visor band, camera pair stacked at one end, flash below */
-  'flip-3': { lensR: 0.33, gap: 1.1 },
-  'flip-4': { lensR: 0.34, gap: 1.12 },
-  /* Flip5/6: pair above the Flex Window, flash between and right */
-  'flip-5': { lensR: 0.35, gap: 1.24 },
-  'flip-6': { lensR: 0.36, gap: 1.26 },
-  /* Flip7/8: the pair sits in the window surround, ring flash beside it */
-  'flip-7': { lensR: 0.37, gap: 1.3, ringFlash: true },
-  'flip-8': { lensR: 0.38, gap: 1.32, ringFlash: true },
+  /* Flip1: raised horizontal module at the top-left, 1.1" pill beside it */
+  'flip-1': { lensR: 0.44, gap: 1.16, module: true, ring: 'dark' },
+  /* Flip3/4: black visor band, camera pair stacked vertically at the left,
+     flash below them */
+  'flip-3': { lensR: 0.5, gap: 1.2, ring: 'polished' },
+  'flip-4': { lensR: 0.51, gap: 1.22, ring: 'polished' },
+  /* Flip5/6: pair side by side above the Flex Window, flash to the right */
+  'flip-5': { lensR: 0.54, gap: 1.3, ring: 'polished' },
+  'flip-6': { lensR: 0.58, gap: 1.36, ring: 'match' },
+  /* Flip7/8: the pair sits inside the top-left corner of the window */
+  'flip-7': { lensR: 0.57, gap: 1.46, ring: 'polished' },
+  'flip-8': { lensR: 0.58, gap: 1.48, ring: 'polished' },
 };
 
 export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
@@ -215,10 +242,11 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   const cover = { w: coverW ?? model.coverW, h: coverH ?? model.coverH };
   const zOut = -T / 2;
   const zG = zOut - 0.016; // window glass plane
-  const zPlate = zOut - 0.058; // camera plateau outer face
+  const zPlate = zOut - 0.05; // camera plateau outer face
   const rGlass = Math.max(0.08, model.geo.rOuter * 0.78);
-  const fc = FLIP_CAM[model.id] ?? { lensR: 0.36, gap: 1.25 };
+  const fc = FLIP_CAM[model.id] ?? { lensR: 0.5, gap: 1.25, ring: 'polished' };
   const yTop = -half * 0.855;
+  const halfW = width / 2;
 
   /* polished bevel that frames a window of w × h */
   const bevel = (w, h, r) =>
@@ -252,85 +280,91 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
     </group>
   );
 
-  const Cam = ({ x, y, s = fc.lensR }) => (
-    <group position={[x, y, zPlate + 0.014]}>
-      <LensStack mats={mats} R={s} D={0.07} ring="polished" />
+  const Cam = ({ x, y, halo = 0 }) => (
+    <group position={[x, y, zPlate + 0.012]}>
+      <LensStack mats={mats} R={fc.lensR} D={0.062} ring={fc.ring ?? 'polished'} halo={halo} />
     </group>
   );
 
   if (kind === 'pill') {
-    /* Z Flip (1): horizontal dual camera with the 1.1" pill display beside it */
-    const camX = -width * 0.13;
+    /* Z Flip (1): horizontal dual module at the top-left with the 1.1"
+       pill display beside it */
+    const camX = -1.86;
     return (
       <group userData={{ dbg: 'cams', modelId: model.id }}>
         <mesh
-          geometry={hingePlateGeometry(3.15, 1.42, 0.16, 0.36, 0.02, SM(5))}
-          material={mats.island}
-          position={[camX, yTop, zPlate + 0.02]}
+          geometry={padGeometry(
+            roundedRectOutline(3.24, 1.46, 0.4, 0, 0, { curveSegs: Math.max(8, SEG.curve), step: 0.5 }),
+            0.13,
+            0.05,
+            3
+          )}
+          material={mats.lensBarrel}
+          position={[camX, yTop, zPlate + 0.005]}
+          rotation={[Math.PI, 0, 0]}
           castShadow
         />
-        {[-0.71, 0.71].map((dx) => (
+        {[-0.62, 0.62].map((dx) => (
           <Cam key={dx} x={camX + dx} y={yTop} />
         ))}
-        <group position={[camX + 1.42, yTop - 0.02, zPlate + 0.03]}>
-          <Flash mats={mats} s={0.62} />
+        <group position={[camX + 1.3, yTop, zPlate + 0.004]}>
+          <Flash mats={mats} s={0.9} />
         </group>
-        <Window x={width * 0.3} y={yTop + 0.25} w={cover.w} h={cover.h} band={0.14} r={0.16} />
+        <Window x={halfW - 1.62} y={yTop + 0.1} w={1.5} h={1.5} band={0.06} r={0.34} rim={false} />
       </group>
     );
   }
 
   if (kind === 'strip') {
-    /* Z Flip3 / Flip4: black visor band — display left, cameras right */
-    const bandH = 2.55;
-    const sw = Math.min(width - 1.5, cover.h * 0.92);
-    const sh = sw / Math.max(1.05, cover.h / cover.w);
+    /* Z Flip3 / Flip4: the black visor band runs the full width; the pair
+       stands vertically at the left edge with the flash under it, and the
+       1.9" panel sits to their right */
+    const bandH = 2.7;
+    const bandY = -half + bandH / 2 + 0.28;
+    const camX = -halfW + 1.12;
+    const p = cover;
+    const winW = Math.min(width - 2.55, p.w * 1.06);
+    const winH = Math.min(bandH - 0.6, (winW * p.h) / p.w);
     return (
       <group userData={{ dbg: 'cams', modelId: model.id }}>
         <RB
           args={[width - 0.4, bandH, 0.09]}
           radius={0.3}
           smoothness={SM(4)}
-          position={[0, yTop + 0.28, zG + 0.05]}
+          position={[0, bandY, zG + 0.05]}
           material={mats.bezel}
         />
-        <Window
-          x={-width * 0.13}
-          y={yTop + 0.28}
-          w={sw}
-          h={Math.min(sh, bandH - 0.55)}
-          band={0}
-          r={0.1}
-        />
+        <Window x={halfW - winW / 2 - 0.62} y={bandY} w={winW} h={winH} band={0} r={0.1} rim={false} />
         {[fc.gap / 2, -fc.gap / 2].map((dy) => (
-          <Cam key={dy} x={width * 0.31} y={yTop + 0.28 + dy} />
+          <Cam key={dy} x={camX} y={bandY + dy} />
         ))}
-        <group position={[width * 0.31, yTop - 0.62, zG - 0.012]}>
-          <Flash mats={mats} s={0.5} />
+        <group position={[camX - 0.02, bandY + fc.gap / 2 + 0.95, zPlate + 0.02]}>
+          <Flash mats={mats} s={0.86} />
         </group>
       </group>
     );
   }
 
   if (kind === 'folder') {
-    /* Z Flip5 / Flip6: black visor band with the camera pair along the top
-       edge, 3.4" folder Flex Window below it */
-    const vy = -half + 0.92;
+    /* Z Flip5 / Flip6: black top half; the pair sits above the window at the
+       left, the flash to the right of it */
+    const bandY = -half + 0.9;
     const halfGap = fc.gap / 2;
+    const x0 = -halfW + 1.16;
     return (
       <group userData={{ dbg: 'cams', modelId: model.id }}>
         <RB
-          args={[width - 0.34, 1.68, 0.07]}
+          args={[width - 0.34, 1.72, 0.07]}
           radius={0.3}
           smoothness={SM(4)}
-          position={[0, vy, zG + 0.032]}
+          position={[0, bandY, zG + 0.032]}
           material={mats.bezel}
         />
-        {[-halfGap, halfGap].map((dx) => (
-          <Cam key={dx} x={dx - width * 0.24} y={vy} />
+        {[0, 1].map((i) => (
+          <Cam key={i} x={x0 + i * fc.gap} y={bandY - 0.02} />
         ))}
-        <group position={[halfGap + 0.28 - width * 0.24, vy, zPlate + 0.03]}>
-          <Flash mats={mats} s={0.56} />
+        <group position={[x0 + fc.gap + fc.lensR + 0.36, bandY - 0.02, zPlate + 0.004]}>
+          <Flash mats={mats} s={0.9} />
         </group>
         <Window x={0} y={-half * 0.38} w={cover.w} h={Math.min(cover.h, half * 0.62)} band={0.13} />
       </group>
@@ -338,8 +372,8 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   }
 
   /* full: Z Flip7 / Flip8 — edge-to-edge Flex Window that wraps the cameras */
-  const vy = -half + 0.95;
-  const halfGap = fc.gap / 2;
+  const x0 = -halfW + 1.14;
+  const vy = -half + 1.04;
   return (
     <group userData={{ dbg: 'cams', modelId: model.id }}>
       <Window
@@ -350,20 +384,13 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
         band={0.09}
         rim={false}
       />
-      {[-halfGap, halfGap].map((dx) => (
-        <group key={dx}>
-          <mesh
-            position={[dx - width * 0.235, vy, zG - 0.0015]}
-            material={mats.bezelFlat}
-            rotation={[Math.PI / 2, 0, 0]}
-          >
-            <cylinderGeometry args={[fc.lensR * 1.55, fc.lensR * 1.55, 0.008, SEG.lens]} />
-          </mesh>
-          <Cam x={dx - width * 0.235} y={vy} />
+      {[0, 1].map((i) => (
+        <group key={i}>
+          <Cam x={x0 + i * fc.gap} y={vy} halo={1.13} />
         </group>
       ))}
-      <group position={[halfGap + 0.4 - width * 0.235, vy, zG - 0.006]}>
-        <Flash mats={mats} s={0.58} ring={fc.ringFlash} />
+      <group position={[x0 + fc.gap + fc.lensR + 0.42, vy, zPlate + 0.004]}>
+        <Flash mats={mats} s={0.92} />
       </group>
     </group>
   );

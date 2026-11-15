@@ -6,7 +6,7 @@ import {
   roundedRectOutline,
   chamferSlab,
   roundedFace,
-  hingeShellGeometry,
+  hingeBlockGeometry,
 } from '../lib/shapes';
 import {
   innerDisplayTexture,
@@ -15,6 +15,8 @@ import {
   microRoughnessTexture,
   spineWordmarkTexture,
   concentricTexture,
+  lensFaceTexture,
+  flashFaceTexture,
 } from '../lib/textures';
 import { useShowcase } from '../store';
 import { foldBus } from '../lib/foldBus';
@@ -34,6 +36,8 @@ function useMaterials(model, colorwayId) {
   const coverTex = useMemo(() => coverDisplayTexture(model), [model]);
   const word = useMemo(() => spineWordmarkTexture('SAMSUNG'), []);
   const conc = useMemo(() => concentricTexture(), []);
+  const lensFace = useMemo(() => lensFaceTexture(), []);
+  const flashFace = useMemo(() => flashFaceTexture(), []);
 
   const set = useMemo(() => {
     const c = model.colors.find((x) => x.id === colorwayId) ?? model.colors[0];
@@ -73,14 +77,25 @@ function useMaterials(model, colorwayId) {
         clearcoatRoughness: 0.13,
         envMapIntensity: 1.0,
       }),
+      /* the hinge block: anodised, micro-blasted aluminium with a fine
+         machined sheen — it has to read as one solid milled part */
       hinge: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(c.hinge).multiplyScalar(0.84),
-        metalness: 0.88,
-        roughness: fin.matte ? 0.56 : 0.46,
+        color: new THREE.Color(c.hinge).multiplyScalar(0.95),
+        metalness: 0.86,
+        roughness: fin.matte ? 0.42 : 0.36,
         roughnessMap: brushed,
-        clearcoat: 0.08,
+        clearcoat: 0.12,
         clearcoatRoughness: 0.3,
-        envMapIntensity: 0.42,
+        envMapIntensity: 1.35,
+      }),
+      hingeCap: new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(c.hinge),
+        metalness: 0.88,
+        roughness: fin.matte ? 0.36 : 0.3,
+        roughnessMap: brushed,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.22,
+        envMapIntensity: 1.5,
       }),
       ringDark: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(c.ringDark),
@@ -150,20 +165,23 @@ function useMaterials(model, colorwayId) {
         polygonOffset: true,
         polygonOffsetFactor: -4,
       }),
-      /* the sapphire window over the stack: near-black glass with the thin
-         blue/violet coating bloom a real lens throws back */
+      /* the sapphire window over the stack: the optical structure of the
+         element is painted into the map, and the curvature plus clearcoat
+         throw the moving highlight, so the lens reads as glass from any
+         angle instead of a flat black disc */
       lensGlass: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color('#010204'),
+        color: new THREE.Color('#ffffff'),
+        map: lensFace,
         metalness: 0.0,
-        roughness: 0.11,
-        clearcoat: 0.22,
-        clearcoatRoughness: 0.1,
-        ior: 1.7,
-        specularIntensity: 0.42,
-        iridescence: 0.25,
-        iridescenceIOR: 1.32,
-        iridescenceThicknessRange: [200, 620],
-        envMapIntensity: 0.035,
+        roughness: 0.3,
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.28,
+        ior: 1.62,
+        specularIntensity: 0.22,
+        iridescence: 0.12,
+        iridescenceIOR: 1.3,
+        iridescenceThicknessRange: [220, 560],
+        envMapIntensity: 0.16,
       }),
       lensInner: new THREE.MeshPhysicalMaterial({
         color: new THREE.Color('#04060c'),
@@ -189,14 +207,14 @@ function useMaterials(model, colorwayId) {
         clearcoatRoughness: 0.18,
         envMapIntensity: 0.35,
       }),
-      /* the machined ring: real metal, tight highlight, one crisp reflection */
+      /* the machined lip: real metal, one crisp highlight, no grey halo */
       lensRing: new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(c.ring).multiplyScalar(0.5),
+        color: new THREE.Color(c.ring).multiplyScalar(0.55),
         metalness: 1,
-        roughness: 0.24,
+        roughness: 0.28,
         clearcoat: 0.45,
-        clearcoatRoughness: 0.1,
-        envMapIntensity: 0.42,
+        clearcoatRoughness: 0.12,
+        envMapIntensity: 0.8,
       }),
       lensCatch: new THREE.MeshBasicMaterial({
         color: new THREE.Color('#b9c8ff'),
@@ -205,24 +223,25 @@ function useMaterials(model, colorwayId) {
         toneMapped: false,
         depthWrite: false,
       }),
-      flashGloss: new THREE.MeshStandardMaterial({
-        color: new THREE.Color('#fffaf0'),
-        emissive: new THREE.Color('#fff2d8'),
-        emissiveIntensity: 0.5,
-        roughness: 0.12,
-        metalness: 0.05,
+      flashFace: new THREE.MeshBasicMaterial({ map: flashFace, toneMapped: false }),
+      flashGloss: new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#ffffff'),
+        transparent: true,
+        opacity: 0.1,
+        depthWrite: false,
+        toneMapped: false,
       }),
       inner: new THREE.MeshBasicMaterial({ map: innerTex, toneMapped: false }),
       cover: new THREE.MeshBasicMaterial({ map: coverTex, toneMapped: false }),
       flash: new THREE.MeshStandardMaterial({
         color: new THREE.Color('#f6ecd8'),
         emissive: new THREE.Color('#ffeccb'),
-        emissiveIntensity: 0.85,
+        emissiveIntensity: 0.2,
         roughness: 0.22,
         metalness: 0.05,
       }),
     };
-  }, [model, colorwayId, brushed, micro, innerTex, coverTex, word, conc]);
+  }, [model, colorwayId, brushed, micro, innerTex, coverTex, word, conc, lensFace, flashFace]);
 
   useEffect(
     () => () => {
@@ -248,7 +267,9 @@ function useGeometry(model) {
     const gap = Math.max(0.02, dims.tFold - 2 * T);
     const pivotZ = T / 2 + gap / 2;
     const rOut = g.rOuter;
-    const rSeam = Math.min(0.075, T * 0.14);
+    /* the hinge-side edge barely rounds: two panels meet on a hairline, so the
+       seam must never open into a milled-looking groove */
+    const rSeam = Math.min(0.026, T * 0.06);
     const bevel = Math.min(0.05, T * 0.11);
     const lip = Math.min(0.115, Math.max(0.07, T * 0.2)); // metal frame visible from the front
     const [rw, rh] = model.main.res;
@@ -339,41 +360,61 @@ function useGeometry(model) {
     const coverH = Math.min(model.coverH, (book ? across : half) - 0.62);
     const rCover = Math.max(0.08, rOut * 0.78);
 
-    /* ---- hinge spine ------------------------------------------------
-       The cover is a curved shell of armoured aluminium centred on the fold
-       axis, section = an arc that spans exactly the angle between the two back
-       faces. Closed it wraps the whole folded edge (a round D), at a right
-       angle it fills the wedge between the two backs, and open flat it rolls
-       away into the body leaving a hairline strip on the seam — the spine is
-       never a flat plate and never pokes past the silhouette. It turns by half
-       the fold, like the real cover, so it always bisects the gap. */
+    /* ---- hinge block ------------------------------------------------
+       A real fold hinge does not show a skin: what you see between the two
+       halves at 115° is the solid machined body of the hinge, thick enough
+       that its ends are blunt, and when the device is open flat it is gone
+       from the back altogether — two glass panels meet on a hairline and
+       only the two metal hinge caps remain at the ends of the seam.
+
+       So the cover is a solid sector about the fold axis: outer skin on
+       Ro, flat side walls that land exactly on the two back planes, body
+       down to Ri. Both arcs roll down onto the glass so nothing ends on a
+       knife edge. It is hidden below ~5° of span, and the caps are built
+       separately with a minimum span so they stay as small metal tabs. */
     const hinge = model.hinge ?? { protrude: 0.02 };
     const Ra = T + gap / 2; // axis -> back face of the body
     const plateT = 0.042; // nominal cover thickness (kept for the glass inset)
-    const Rback = Ra + 0.0075; // outer surface of the back glass
-    const protrude = Math.min(0.026, Math.max(0.006, hinge.protrude ?? 0.018));
-    const Ro = Rback + protrude; // outer face of the spine
+    const Rglass = Ra + 0.0075; // outer surface of the back glass
+    const protrude = Math.min(0.03, Math.max(0.006, hinge.protrude ?? 0.018));
+    const Ro = Rglass + protrude; // outer face of the cover
+    const Ri = Math.max(0.08, Ra * 0.45); // solid, all the way in
     const hingeLength = across * 0.952;
-    const shellT = Math.max(0.028, Math.min(0.075, T * 0.12));
-    /* when the device is open the cover is a 2.3 mm strip over the seam band */
-    const minSpan = 2 * Math.asin(Math.min(0.5, 0.115 / Ro));
-    const LADDER = SEG.tier === 'low' ? 9 : 19;
-    const shellSegsU = SEG.tier === 'low' ? 22 : 44;
+    const capLen = Math.max(0.5, Math.min(1.15, across * 0.055));
+    const capGap = 0.014;
+    const spineLen = Math.max(1.0, hingeLength - (capLen + capGap) * 2);
+    /* the caps keep a 1.6 mm span even flat open, so the seam ends on metal */
+    const capSpan = 2 * Math.asin(Math.min(0.5, 0.08 / (Ro + 0.01)));
+    const LADDER = SEG.tier === 'low' ? 9 : 17;
+    const spanSegs = SEG.tier === 'low' ? 22 : 40;
     const spine = [];
+    const caps = [];
     for (let i = 0; i < LADDER; i += 1) {
       const a = (i / (LADDER - 1)) * Math.PI; // 0 = flat open, pi = closed
-      const span = Math.max(minSpan, a);
       spine.push(
-        hingeShellGeometry({
+        hingeBlockGeometry({
           Ro,
-          thick: shellT,
-          span,
-          len: hingeLength,
-          segsU: shellSegsU,
-          segsV: 3,
-          capH: Math.min(0.3, Math.max(0.16, across * 0.019)),
-          groove: 0.012,
-          grooveW: 0.045,
+          Ri,
+          span: Math.min(Math.PI, Math.max(0.03, a) + (a > 0.25 ? 0.2 : a * 0.8)),
+          len: spineLen,
+          segsU: spanSegs,
+          segsV: 8,
+          endRound: 0.05,
+          Rland: Rglass + 0.0032,
+          arcEdge: 0.075,
+        })
+      );
+      caps.push(
+        hingeBlockGeometry({
+          Ro: Ro + 0.01,
+          Ri,
+          span: Math.max(capSpan, a),
+          len: capLen,
+          segsU: spanSegs,
+          segsV: 5,
+          endRound: 0.055,
+          Rland: Rglass + 0.0065,
+          arcEdge: 0.055,
         })
       );
     }
@@ -433,19 +474,22 @@ function useGeometry(model) {
         1
       ),
       spine,
+      caps,
       Ro,
       plateT,
       word: wordGeo,
       wordLength,
       wordWidth,
       hingeLength,
+      capLen,
+      capGap,
       punch: new THREE.SphereGeometry(1, SEG.punch[0], SEG.punch[1]),
     };
   }, [model]);
 
   useEffect(
     () => () => {
-      const list = [built.fixed, built.moving, built.spine];
+      const list = [built.fixed, built.moving, built.spine, built.caps];
       list.forEach((set) => {
         if (Array.isArray(set)) set.forEach((g) => g.dispose?.());
         else if (set && typeof set === 'object') Object.values(set).forEach((g) => g.dispose?.());
@@ -567,9 +611,10 @@ function BottomEdge({ mats, T, cx, cy, width, flipAxis = false }) {
   );
 }
 
-function Hinge({ mats, geo, form, spineRef, wordRef, frameRef }) {
+function Hinge({ mats, geo, form, spineRef, wordRef, frameRef, capTopRef, capBotRef }) {
   const rot = form === 'flip' ? Math.PI / 2 : 0;
-  /* the shell is built about the fold axis itself, so it needs no offset: the
+  const y = geo.hingeLength / 2 - geo.capLen / 2;
+  /* the block is built about the fold axis itself, so it needs no offset: the
      frame group (which turns by half the fold) keeps it centred in the gap */
   return (
     <group position={[0, 0, geo.pivotZ]}>
@@ -580,6 +625,24 @@ function Hinge({ mats, geo, form, spineRef, wordRef, frameRef }) {
             geometry={geo.spine[0]}
             material={mats.hinge}
             userData={{ dbg: 'hinge' }}
+            castShadow
+            receiveShadow
+          />
+          <mesh
+            ref={capTopRef}
+            geometry={geo.caps[0]}
+            material={mats.hingeCap}
+            position={[0, y, 0]}
+            userData={{ dbg: 'hingeCap' }}
+            castShadow
+            receiveShadow
+          />
+          <mesh
+            ref={capBotRef}
+            geometry={geo.caps[0]}
+            material={mats.hingeCap}
+            position={[0, -y, 0]}
+            userData={{ dbg: 'hingeCap' }}
             castShadow
             receiveShadow
           />
@@ -610,6 +673,8 @@ export default function DeviceModel({ model }) {
   const spineRef = useRef();
   const wordRef = useRef();
   const frameRef = useRef();
+  const capTopRef = useRef();
+  const capBotRef = useRef();
   const cur = useRef(Math.PI);
   const autoPhase = useRef(Math.PI / 2);
 
@@ -668,12 +733,20 @@ export default function DeviceModel({ model }) {
       const idx = Math.round(t * (geos.spine.length - 1));
       const want = geos.spine[idx];
       if (spineRef.current.geometry !== want) spineRef.current.geometry = want;
+      if (capTopRef.current && capTopRef.current.geometry !== geos.caps[idx]) {
+        capTopRef.current.geometry = geos.caps[idx];
+        capBotRef.current.geometry = geos.caps[idx];
+      }
+      /* open flat the cover is fully stowed inside the body: the back shows
+         two glass panels on a hairline with only the hinge caps at the ends */
+      const shown = a > 0.1;
+      if (spineRef.current.visible !== shown) spineRef.current.visible = shown;
       /* the wordmark is engraved on the crown of the spine: it fades in only
          once the cover is wide enough to carry the letters, and never shows
          on the hairline seam of a flat-open device */
       if (wordRef.current) {
         const width = 2 * geos.Ro * Math.sin(Math.min(Math.PI, a) / 2);
-        const k = clamp((width - 0.2) / 0.22, 0, 1);
+        const k = clamp((width - 0.2) / 0.22, 0, 1) * (shown ? 1 : 0);
         wordRef.current.visible = k > 0.02;
         mats.word.opacity = 0.92 * k;
       }
@@ -748,7 +821,7 @@ export default function DeviceModel({ model }) {
           </>
         ) : (
           <>
-            <SimTray mats={mats} T={T} x={across * 0.46} y={half - 0.004} />
+            <SimTray mats={mats} T={T} x={across * 0.42} y={half - 0.004} />
             {[-across * 0.34, across * 0.34].map((bx) => (
               <Band key={`t${bx}`} mats={mats} T={T} x={bx} y={half + 0.002} />
             ))}
@@ -797,7 +870,16 @@ export default function DeviceModel({ model }) {
       </group>
 
       {/* ---------------- hinge ---------------- */}
-      <Hinge mats={mats} geo={geos} form={form} spineRef={spineRef} wordRef={wordRef} frameRef={frameRef} />
+      <Hinge
+        mats={mats}
+        geo={geos}
+        form={form}
+        spineRef={spineRef}
+        wordRef={wordRef}
+        frameRef={frameRef}
+        capTopRef={capTopRef}
+        capBotRef={capBotRef}
+      />
     </group>
   );
 }

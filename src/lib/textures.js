@@ -116,12 +116,12 @@ function sun(ctx, x, y, r, color) {
 
 /* ---------- status bar ---------- */
 
-function statusBar(ctx, W, H, u, color, fs = 1) {
+function statusBar(ctx, W, H, u, color, fs = 1, hideTime = false) {
   ctx.save();
   ctx.fillStyle = color;
   ctx.font = `600 ${Math.round(30 * u * fs)}px ${FONT}`;
   ctx.textAlign = 'left';
-  ctx.fillText('9:41', 48 * u, 60 * u);
+  if (!hideTime) ctx.fillText('9:41', 48 * u, 60 * u);
   const bx = W - 48 * u;
   // battery
   ctx.strokeStyle = color;
@@ -432,27 +432,43 @@ function drawCover(model) {
 
   /* --- big panels: lock screen / widgets --- */
   const ins = W * 0.075;
+  /* the Flip7/8 pair sits in the top-left corner of the edge-to-edge Flex
+     Window, so nothing may be drawn there: the status bar keeps only the
+     right-hand icons and the clock block starts below the lenses, centred —
+     which is how One UI actually lays the Flex Window lock screen out */
+  const corner = kind === 'full';
   ctx.save();
-  statusBar(ctx, W, H, Math.min(u, 1.1), 'rgba(255,255,255,0.9)', 1);
+  statusBar(ctx, W, H, Math.min(u, 1.1), 'rgba(255,255,255,0.9)', 1, corner);
   ctx.restore();
 
-  const clockSize = kind === 'folder' ? 200 : kind === 'full' ? 210 : 210;
+  const clockSize = kind === 'folder' ? 200 : kind === 'full' ? 205 : 210;
+  const clockY = corner ? H * 0.56 : H * 0.3;
+  const textX = corner ? W / 2 : ins;
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.97)';
   ctx.font = `200 ${Math.round(clockSize * u)}px ${FONT}`;
-  ctx.textAlign = 'left';
-  ctx.fillText('9:41', ins, H * 0.3);
+  ctx.textAlign = corner ? 'center' : 'left';
+  if (corner) ctx.fillText('9:41', W / 2, clockY);
+  else ctx.fillText('9:41', ins, clockY);
   ctx.fillStyle = 'rgba(226,232,255,0.6)';
   ctx.font = `400 ${Math.round(46 * u)}px ${FONT}`;
-  ctx.fillText('Sat, Nov 14', ins + 4 * u, H * 0.365);
+  ctx.fillText('Sat, Nov 14', corner ? textX : ins + 4 * u, corner ? H * 0.622 : H * 0.365);
   ctx.restore();
 
   // weather row
   ctx.save();
-  sun(ctx, ins + 22 * u, H * 0.435, 26 * u, '#ffd479');
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = `300 ${Math.round(48 * u)}px ${FONT}`;
-  ctx.fillText('18°   Clear', ins + 66 * u, H * 0.45);
+  if (corner) {
+    ctx.textAlign = 'center';
+    sun(ctx, W / 2 - 64 * u, H * 0.708, 24 * u, '#ffd479');
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = `300 ${Math.round(46 * u)}px ${FONT}`;
+    ctx.fillText('18°   Clear', W / 2 + 26 * u, H * 0.718);
+  } else {
+    sun(ctx, ins + 22 * u, H * 0.435, 26 * u, '#ffd479');
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = `300 ${Math.round(48 * u)}px ${FONT}`;
+    ctx.fillText('18°   Clear', ins + 74 * u, H * 0.45);
+  }
   ctx.restore();
 
   if (kind === 'tall' || kind === 'normal' || kind === 'wide') {
@@ -517,11 +533,12 @@ function drawCover(model) {
   }
 
   if (kind === 'full') {
-    // Now Brief card
-    const y = H * 0.52;
+    // Now Brief card, tucked between the weather row and the shortcuts
+    const y = H * 0.772;
+    const ch = H * 0.082;
     ctx.save();
-    rr(ctx, ins, y, W - ins * 2, H * 0.17, 34 * u);
-    const g = ctx.createLinearGradient(ins, y, W - ins, y + H * 0.17);
+    rr(ctx, ins, y, W - ins * 2, ch, 30 * u);
+    const g = ctx.createLinearGradient(ins, y, W - ins, y + ch);
     g.addColorStop(0, 'rgba(139,123,255,0.22)');
     g.addColorStop(1, 'rgba(61,218,215,0.1)');
     ctx.fillStyle = g;
@@ -530,21 +547,18 @@ function drawCover(model) {
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.72)';
-    ctx.font = `600 ${Math.round(26 * u)}px ${FONT}`;
-    ctx.fillText('NOW BRIEF', ins + 28 * u, y + H * 0.045);
+    ctx.font = `600 ${Math.round(24 * u)}px ${FONT}`;
+    ctx.fillText('NOW BRIEF', ins + 26 * u, y + ch * 0.38);
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.font = `400 ${Math.round(32 * u)}px ${FONT}`;
-    ctx.fillText('Grandparents at 18:30', ins + 28 * u, y + H * 0.09);
-    ctx.fillStyle = 'rgba(226,232,255,0.6)';
-    ctx.font = `400 ${Math.round(27 * u)}px ${FONT}`;
-    ctx.fillText('Leave by 17:50 · 24 min', ins + 28 * u, y + H * 0.128);
+    ctx.font = `400 ${Math.round(29 * u)}px ${FONT}`;
+    ctx.fillText('Grandparents 18:30 · leave 17:50', ins + 26 * u, y + ch * 0.78);
     ctx.restore();
   }
 
   // quick shortcuts on round covers
   if (kind === 'folder' || kind === 'full') {
     const sh = ['call', 'message', 'camera', 'music'];
-    const y = H - 120 * u;
+    const y = H - (kind === 'full' ? 62 * u : 120 * u);
     sh.forEach((kindOf, i) => {
       const x = ins + 52 * u + i * ((W - ins * 2 - 104 * u) / 3);
       ctx.save();
@@ -760,4 +774,150 @@ export function microRoughnessTexture() {
 
 export function concentricTexture() {
   return memo('concentric', () => tex(drawConcentric(), { srgb: false, aniso: Math.min(4, PERF.aniso) }));
+}
+
+/* ------------------------------------------------------------------ */
+/*  camera element face                                               */
+/*                                                                    */
+/*  What a real rear lens shows head-on: a near-black sapphire window  */
+/*  with the barrel throat and the inner element suspended in it, a    */
+/*  violet coating glint on the element's rim, and the aperture at the */
+/*  bottom of the stack. The moving highlight is left to the material  */
+/*  (clearcoat over the dome), so this map only carries the optical    */
+/*  structure — never a painted-on sticker of a reflection.            */
+/* ------------------------------------------------------------------ */
+
+function drawLensFace() {
+  const S = 512;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S;
+  const ctx = c.getContext('2d');
+  const C = S / 2;
+  const R = C - 2;
+
+  ctx.fillStyle = '#020306';
+  ctx.fillRect(0, 0, S, S);
+
+  /* the window: deep blue-black, brightest right at the axis */
+  const base = ctx.createRadialGradient(C, C, 0, C, C, R);
+  base.addColorStop(0, '#0a0e18');
+  base.addColorStop(0.42, '#070a11');
+  base.addColorStop(0.78, '#04060b');
+  base.addColorStop(0.97, '#010203');
+  base.addColorStop(1, '#010102');
+  ctx.fillStyle = base;
+  ctx.beginPath();
+  ctx.arc(C, C, R, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* barrel throat: the dark step between the sapphire rim and the glass */
+  ctx.strokeStyle = 'rgba(3,5,9,0.95)';
+  ctx.lineWidth = S * 0.032;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.955, 0, Math.PI * 2);
+  ctx.stroke();
+
+  /* the inner element: a slightly lifted disc with a machined edge */
+  const elem = ctx.createRadialGradient(C - R * 0.1, C - R * 0.12, R * 0.05, C, C, R * 0.56);
+  elem.addColorStop(0, '#243049');
+  elem.addColorStop(0.5, '#121a29');
+  elem.addColorStop(1, '#070b12');
+  ctx.fillStyle = elem;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.56, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(160,185,240,0.4)';
+  ctx.lineWidth = S * 0.007;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.555, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,145,200,0.16)';
+  ctx.lineWidth = S * 0.006;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.78, 0, Math.PI * 2);
+  ctx.stroke();
+
+  /* coating glint: violet on one side, teal on the other, like real AR coats */
+  ctx.strokeStyle = 'rgba(138,120,255,0.34)';
+  ctx.lineWidth = S * 0.016;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.5, Math.PI * 1.02, Math.PI * 1.46);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,230,220,0.16)';
+  ctx.lineWidth = S * 0.012;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.5, Math.PI * 1.72, Math.PI * 1.96);
+  ctx.stroke();
+
+  /* the aperture blades and the pupil at the bottom of the bore */
+  const ap = ctx.createRadialGradient(C, C, 0, C, C, R * 0.3);
+  ap.addColorStop(0, '#000000');
+  ap.addColorStop(0.72, '#03050a');
+  ap.addColorStop(1, 'rgba(6,9,16,0)');
+  ctx.fillStyle = ap;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#000104';
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.145, 0, Math.PI * 2);
+  ctx.fill();
+
+  /* faint dust / micro-texture so the glass never looks like flat paint */
+  for (let i = 0; i < 260; i += 1) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * R * 0.9;
+    ctx.fillStyle = `rgba(190,210,255,${0.012 + Math.random() * 0.02})`;
+    ctx.fillRect(C + r * Math.cos(a), C + r * Math.sin(a), 1.4, 1.4);
+  }
+
+  /* crisp edge of the sapphire window */
+  ctx.strokeStyle = 'rgba(120,140,190,0.2)';
+  ctx.lineWidth = S * 0.007;
+  ctx.beginPath();
+  ctx.arc(C, C, R * 0.985, 0, Math.PI * 2);
+  ctx.stroke();
+  return c;
+}
+
+export function lensFaceTexture() {
+  return memo('lensface', () => tex(drawLensFace(), { aniso: Math.min(8, PERF.aniso) }));
+}
+
+/* warm diffuser face of the LED flash */
+function drawFlashFace() {
+  const S = 256;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S;
+  const ctx = c.getContext('2d');
+  const C = S / 2;
+  const g = ctx.createRadialGradient(C, C, 0, C, C, C);
+  g.addColorStop(0, '#f6ecd8');
+  g.addColorStop(0.55, '#ecdfc6');
+  g.addColorStop(0.86, '#d8cab0');
+  g.addColorStop(1, '#a99d88');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  /* the fine micro-lens grid every flash diffuser has */
+  ctx.strokeStyle = 'rgba(120,110,95,0.16)';
+  ctx.lineWidth = 2;
+  for (let i = -4; i <= 4; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(C + i * 26, 0);
+    ctx.lineTo(C + i * 26, S);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, C + i * 26);
+    ctx.lineTo(S, C + i * 26);
+    ctx.stroke();
+  }
+  return c;
+}
+
+export function flashFaceTexture() {
+  return memo('flashface', () => tex(drawFlashFace(), { aniso: 4 }));
 }
