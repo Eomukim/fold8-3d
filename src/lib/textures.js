@@ -522,12 +522,12 @@ function drawCover(model) {
       ctx.beginPath();
       ctx.arc(ins + 46 * u, y + H * 0.05, 14 * u, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.font = `500 ${Math.round(30 * u)}px ${FONT}`;
-      ctx.fillText(t[1], ins + 74 * u, y + H * 0.062);
-      ctx.fillStyle = 'rgba(226,232,255,0.5)';
-      ctx.font = `400 ${Math.round(24 * u)}px ${FONT}`;
-      ctx.fillText(t[0], ins + 74 * u, y + H * 0.086);
+      ctx.fillStyle = 'rgba(226,232,255,0.55)';
+      ctx.font = `500 ${Math.round(22 * u)}px ${FONT}`;
+      ctx.fillText(t[0], ins + 74 * u, y + H * 0.036);
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.font = `600 ${Math.round(32 * u)}px ${FONT}`;
+      ctx.fillText(t[1], ins + 74 * u, y + H * 0.082);
       ctx.restore();
     });
   }
