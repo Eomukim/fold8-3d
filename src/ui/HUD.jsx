@@ -126,6 +126,26 @@ export default function HUD() {
         </p>
         <h1>{model.name}</h1>
         <p className="lede">{model.lede}</p>
+
+        {/* phones hide the spec table; the real numbers stay one line away */}
+        <dl className="spec-inline">
+          <div>
+            <dt>접힘</dt>
+            <dd>{model.spec.folded}</dd>
+          </div>
+          <div>
+            <dt>펼침</dt>
+            <dd>{model.spec.unfolded}</dd>
+          </div>
+          <div>
+            <dt>커버</dt>
+            <dd>{model.spec.cover.split(' ')[0]}</dd>
+          </div>
+          <div>
+            <dt>메인</dt>
+            <dd>{model.spec.main.split(' ')[0]}</dd>
+          </div>
+        </dl>
         <ul className="spec-list">
           <li>
             <span>접힌 두께</span>
@@ -152,6 +172,7 @@ export default function HUD() {
             <b>{model.spec.crease}</b>
           </li>
         </ul>
+
       </aside>
 
       <div className="dock">
@@ -183,6 +204,13 @@ export default function HUD() {
                 onClick={() => setModel(m.id)}
               >
                 {m.chip}
+                <span className="chip-bar" aria-hidden="true">
+                  <i
+                    style={{
+                      width: `${Math.max(14, Math.min(100, (m.dims.tFold / (series === 'fold' ? 1.75 : 1.78)) * 100))}%`,
+                    }}
+                  />
+                </span>
                 <span>{m.year}</span>
               </button>
             ))}

@@ -714,6 +714,38 @@ export function wordmarkTexture(text) {
   return memo(`word:${text}`, () => tex(drawWordmark(text), { aniso: Math.min(4, PERF.aniso) }));
 }
 
+/* ---------- spine wordmark: drawn along the device height ---------- */
+
+function drawSpineWordmark(text) {
+  /* u runs across the letters (their height), v runs along the word */
+  const W = 160;
+  const H = 2048;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.translate(W / 2, H / 2);
+  /* letters read from the bottom of the spine towards the top */
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `600 ${Math.round(W * 0.46)}px ${FONT}`;
+  const base = ctx.measureText(text).width;
+  if (ctx.letterSpacing !== undefined) {
+    ctx.letterSpacing = `${Math.max(0, (H * 0.72 - base) / Math.max(1, text.length - 1))}px`;
+  }
+  /* engraved: a soft lit lower lip under a dark cut */
+  ctx.fillStyle = 'rgba(255,255,255,0.30)';
+  ctx.fillText(text, 1.4, 0);
+  ctx.fillStyle = 'rgba(9,11,16,0.80)';
+  ctx.fillText(text, 0, 0);
+  return c;
+}
+
+export function spineWordmarkTexture(text) {
+  return memo(`spineword:${text}`, () => tex(drawSpineWordmark(text), { aniso: Math.min(4, PERF.aniso) }));
+}
+
 export function brushedRoughnessTexture() {
   return memo('brushed', () =>
     tex(drawBrushedRough(), { srgb: false, repeat: [2, 3], aniso: Math.min(4, PERF.aniso) })

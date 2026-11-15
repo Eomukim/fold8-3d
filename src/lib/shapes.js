@@ -342,6 +342,35 @@ function addSpineCaps({ pos, nor, uv, idx, n, radius, halfSpan, length }) {
   });
 }
 
+/**
+ * Hinge cover plate: a flat rounded rectangle with a fine machined chamfer on
+ * its outer face. Built so the outer face sits at z = 0 and the plate fills
+ * z = [-thickness, 0] — the hinge frame then places it on the chord between
+ * the two back faces.
+ */
+export function hingePlateGeometry(width, length, thickness, radius = 0.08, bevel = 0.016, curveSegs = SEG.curve) {
+  const w = Math.max(0.02, width);
+  const l = Math.max(0.02, length);
+  const r = Math.max(0.004, Math.min(radius, Math.min(w, l) / 2 - 0.002));
+  const t = Math.max(0.006, thickness);
+  const bev = Math.max(0.002, Math.min(bevel, t * 0.34, r * 0.6));
+  const depth = Math.max(0.002, t - 2 * bev);
+  const shape = roundedRectShape(w, l, r, 0, 0);
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: bev,
+    bevelSize: bev,
+    bevelSegments: 2,
+    curveSegments: Math.max(3, Math.round(curveSegs * 0.8)),
+    steps: 1,
+  });
+  geo.translate(0, 0, -depth / 2 - t / 2);
+  geo.computeVertexNormals();
+  geo.computeBoundingBox();
+  return geo;
+}
+
 /** Only the two solid end faces of the spine (hinge end caps). */
 export function spineCaps(radius, halfSpan, length, segsU) {
   const pos = [];

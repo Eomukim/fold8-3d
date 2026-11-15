@@ -118,7 +118,21 @@ function Studio() {
   return (
     <>
       <ambientLight intensity={0.22} />
-      <directionalLight position={[9, 13, 11]} intensity={1.15} color="#ffffff" />
+      <directionalLight
+        position={[9, 13, 11]}
+        intensity={1.15}
+        color="#ffffff"
+        castShadow
+        shadow-mapSize={[PERF.tier === 'low' ? 512 : 1024, PERF.tier === 'low' ? 512 : 1024]}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.03}
+        shadow-camera-left={-16}
+        shadow-camera-right={16}
+        shadow-camera-top={16}
+        shadow-camera-bottom={-16}
+        shadow-camera-near={1}
+        shadow-camera-far={70}
+      />
       <directionalLight position={[-8, 4, 6]} intensity={0.4} color="#a9c0ff" />
       <directionalLight position={[-14, 5, -9]} intensity={0.55} color="#d6deff" />
       <pointLight position={[-9, -4, 8]} intensity={22} color="#6c7bff" distance={40} decay={2} />

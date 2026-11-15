@@ -1,54 +1,60 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
-import { roundedRectOutline, roundedFace, frameGeometry } from '../lib/shapes';
+import { roundedRectOutline, roundedFace, frameGeometry, hingePlateGeometry } from '../lib/shapes';
 import { SEG } from '../lib/perf';
 
 const SM = (n) => Math.max(2, Math.round(n * SEG.smooth));
 
 /* ------------------------------------------------------------------ */
-/*  lens stack: gunmetal barrel, polished chamfer, recessed glass      */
+/*  lens stack: black barrel, hairline metal rim, sunk sapphire glass  */
+/*  local +z points into the body; outward is -z                       */
 /* ------------------------------------------------------------------ */
+
+const LR = 0.655; // barrel radius (cm) -> 13.1 mm outer diameter
 
 function LensStack({ mats, r = 1, polished = false }) {
   const seg = SEG.lens;
+  const R = LR;
+  const D = 0.052; // how far the barrel stands proud of the island
+  const flip = [0, Math.PI, 0]; // ring/circle geometry faces outward (-z)
+
   return (
     <group scale={[r, r, r]}>
-      {/* housing disc: sits proud of the island and closes the barrel */}
-      <mesh material={mats.ringDark} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.016]}>
-        <cylinderGeometry args={[0.47, 0.47, 0.07, seg]} />
+      {/* bright machined seat where the barrel meets the island */}
+      <mesh material={mats.lensRim} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.004]}>
+        <cylinderGeometry args={[R * 0.985, R * 1.015, 0.014, seg]} />
       </mesh>
-      {/* polished chamfer that catches the light on the ring's outer edge */}
-      <mesh material={mats.ring} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.032]}>
-        <cylinderGeometry args={[0.47, 0.405, 0.032, seg]} />
+      {/* black anodised barrel */}
+      <mesh material={mats.lensRing} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -(D - 0.01) / 2]}>
+        <cylinderGeometry args={[R * 0.955, R * 0.995, D - 0.01, seg]} />
       </mesh>
-      {/* flat top of the bezel */}
-      <mesh material={mats.ring} rotation={[0, Math.PI, 0]} position={[0, 0, -0.048]}>
-        <ringGeometry args={[0.4, 0.47, seg]} />
+      {/* rolled chamfer on the front edge */}
+      <mesh material={mats.lensRing} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -(D - 0.005)]}>
+        <cylinderGeometry args={[R * 0.865, R * 0.955, 0.012, seg]} />
       </mesh>
-      {/* dark wall falling to the glass seat */}
-      <mesh material={mats.ringDark} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.04]}>
-        <cylinderGeometry args={[0.355, 0.4, 0.016, seg, 1, true]} />
+      {/* flat top of the ring: a thin black shoulder around the glass */}
+      <mesh material={mats.lensRing} rotation={flip} position={[0, 0, -D + 0.001]}>
+        <ringGeometry args={[R * 0.79, R * 0.865, seg]} />
       </mesh>
-      {/* cover glass, sunk below the bezel rim */}
-      <mesh
-        material={mats.lens}
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[1, 0.06, 1]}
-        position={[0, 0, -0.03]}
-      >
-        <sphereGeometry args={[0.356, SEG.lensGlass[0], SEG.lensGlass[1], 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+      {/* short bore down to the glass seat */}
+      <mesh material={mats.lensRing} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -D + 0.007]}>
+        <cylinderGeometry args={[R * 0.79, R * 0.79, 0.013, seg, 1, true]} />
       </mesh>
-      {/* element glint in the middle of the glass */}
-      <mesh material={mats.lensInner} rotation={[0, Math.PI, 0]} position={[0, 0, -0.041]}>
-        <ringGeometry args={[0.09, 0.13, SEG.dot]} />
+      {/* sapphire cover glass: a nearly flat, very dark disc that fills the ring */}
+      <mesh material={mats.lens} rotation={[-Math.PI / 2, 0, 0]} scale={[1, 0.06, 1]} position={[0, 0, -D + 0.0115]}>
+        <sphereGeometry args={[R * 0.788, SEG.lensGlass[0], SEG.lensGlass[1], 0, Math.PI * 2, 0, Math.PI * 0.5]} />
       </mesh>
-      <mesh material={mats.dark} rotation={[0, Math.PI, 0]} position={[0, 0, -0.0405]}>
-        <circleGeometry args={[0.09, SEG.dot]} />
+      {/* the lens element behind the glass, and its iris */}
+      <mesh material={mats.lensInner} rotation={flip} position={[0, 0, -D + 0.0125]}>
+        <circleGeometry args={[R * 0.52, SEG.dot * 3]} />
+      </mesh>
+      <mesh material={mats.dark} rotation={flip} position={[0, 0, -D + 0.013]}>
+        <circleGeometry args={[R * 0.15, SEG.dot * 2]} />
       </mesh>
       {polished && (
-        <mesh material={mats.ringTextured} rotation={[0, Math.PI, 0]} position={[0, 0, -0.001]}>
-          <ringGeometry args={[0.475, 0.555, SEG.ringShell]} />
+        <mesh material={mats.lensRim} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.012]}>
+          <cylinderGeometry args={[R * 1.02, R * 1.055, 0.012, seg]} />
         </mesh>
       )}
     </group>
@@ -58,14 +64,11 @@ function LensStack({ mats, r = 1, polished = false }) {
 function Flash({ mats, s = 1, ...rest }) {
   return (
     <group scale={[s, s, s]} {...rest}>
-      <mesh material={mats.ringDark} >
-        <cylinderGeometry args={[0.17, 0.17, 0.08, SEG.small]} />
+      <mesh material={mats.lensRing} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.155, 0.16, 0.05, SEG.small]} />
       </mesh>
-      <mesh material={mats.ring} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.03]}>
-        <cylinderGeometry args={[0.168, 0.148, 0.02, SEG.small]} />
-      </mesh>
-      <mesh material={mats.flash} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.042]}>
-        <cylinderGeometry args={[0.11, 0.11, 0.02, SEG.small]} />
+      <mesh material={mats.flash} rotation={[0, Math.PI, 0]} position={[0, 0, -0.026]}>
+        <circleGeometry args={[0.108, SEG.small]} />
       </mesh>
     </group>
   );
@@ -77,87 +80,63 @@ function Flash({ mats, s = 1, ...rest }) {
 
 export function CameraIsland({ model, mats, zBack, T }) {
   const { cam } = model;
-  const plate = cam.plate ?? 0.12;
+  const plate = cam.plate ?? 0.1;
   const { layout, count, w, h, x, y } = cam;
 
-  const tp = plate * 1.15; // island thickness
-  const z = zBack - tp / 2; // plate centre
-  const zFace = zBack - tp; // plate's outer face
+  const horizontal = layout === 'blockH';
+  const pill =
+    layout === 'pill' || layout === 'pillFloat' || layout === 'ultra' ||
+    layout === 'rings' || layout === 'ringsSlim' || layout === 'dual';
+  const radius = horizontal ? Math.min(w, h) / 2 : pill ? Math.min(w, h) / 2 : 0.22;
+  const t = plate + 0.04; // island block, sunk into the body at its base
+  const zTop = zBack - plate; // outer face of the island
 
-  /* the island plate is body-coloured on the rings models (Fold6+),
-     a dark trimmed block on the early ones */
-  const plateMat =
-    layout === 'rings' || layout === 'ringsSlim' || layout === 'ultra' ? mats.frame : mats.frame;
-
-  const plateNode = (
-    <RB
-      args={[w, h, tp]}
-      radius={
-        layout === 'pill' || layout === 'pillFloat'
-          ? Math.min(w, h) / 2 - 0.02
-          : layout === 'ultra'
-            ? 0.44
-            : layout === 'rings'
-              ? 0.3
-              : 0.28
-      }
-      smoothness={SM(5)}
-      position={[x, y, z]}
-      material={plateMat}
-      castShadow
-    />
-  );
-
-  const gap = count === 2 ? 1.0 : 1.12;
-  const ys = count === 2 ? [y + gap / 2, y - gap / 2] : [y + gap, y, y - gap];
-  const lensZ = zFace - 0.016;
-  const lensScale = layout === 'ultra' ? 1.3 : model.id === 'fold-1' ? 0.84 : 1;
+  /* lens pitch: rings just about clear each other on the slim generations */
+  const span = (horizontal ? w : h) - 1.42 * (layout === 'ultra' ? 1 : 0.92);
+  const pitch = count > 1 ? span / (count - 1) : 0;
+  const lensScale = layout === 'ultra' ? 0.95 : model.id === 'fold-1' ? 0.74 : horizontal ? 0.78 : 0.84;
+  const spots = horizontal
+    ? Array.from({ length: count }, (_, i) => [x - ((count - 1) / 2) * pitch + i * pitch, y])
+    : Array.from({ length: count }, (_, i) => [x, y + ((count - 1) / 2) * pitch - i * pitch]);
 
   return (
     <group>
-      {/* bright machined lip around the island */}
-      <RB
-        args={[w + 0.07, h + 0.07, plate * 0.7]}
-        radius={
-          layout === 'pill' || layout === 'pillFloat'
-            ? Math.min(w, h) / 2
-            : layout === 'ultra'
-              ? 0.48
-              : 0.34
-        }
-        smoothness={SM(5)}
-        position={[x, y, z + plate * 0.32]}
-        material={mats.ring}
+      {/* the island is the body glass lifted a fraction of a millimetre, with
+          a soft machined shoulder — not a metal plate */}
+      <mesh
+        geometry={hingePlateGeometry(w, h, t, radius, 0.022, SM(6))}
+        material={mats.island}
+        position={[x, y, zTop + t]}
+        castShadow
+        receiveShadow
       />
-      {plateNode}
-      {ys.map((ly, i) => (
-        <group key={i} position={[x, ly, lensZ]}>
-          <LensStack
-            mats={mats}
-            r={lensScale}
-            polished={layout === 'ringsSlim' || layout === 'ultra' || layout === 'rings'}
-          />
+      {spots.map(([lx, ly], i) => (
+        <group key={i} position={[lx, ly, zTop]}>
+          <LensStack mats={mats} r={lensScale} polished={layout === 'ringsSlim' || layout === 'ultra'} />
         </group>
       ))}
 
-      {/* flash sits inside the island, beside the top lens */}
-      {layout === 'pillFloat' || layout === 'pill' ? (
-        <group position={[x + w / 2 + 0.42, y + 0.15, zFace - 0.004]}>
-          <Flash mats={mats} s={1.0} />
-        </group>
-      ) : (
-        <group position={[x + w / 2 - 0.3, y + 1.14, zFace - 0.004]}>
-          <Flash mats={mats} s={0.82} />
-        </group>
-      )}
+      {/* flash: inside the pill under the lowest lens on the newest Folds,
+          beside the block on the early ones */}
+      <group
+        position={
+          layout === 'dual' || layout === 'ultra'
+            ? [x, y - h / 2 + 0.36, zTop - 0.004]
+            : layout === 'rings' || layout === 'ringsSlim'
+              ? [x + w / 2 + 0.44, y + h / 2 - 0.62, zTop - 0.004]
+              : [x + w / 2 - 0.26, y + h / 2 - 0.60, zTop - 0.004]
+        }
+      >
+        <Flash mats={mats} s={layout === 'blockH' ? 0.8 : 0.92} />
+      </group>
 
-      {/* mic dot */}
+      {/* rear mic pinhole */}
       <mesh
-        position={[x + w / 2 - 0.3, y - 0.9, zFace - 0.012]}
+        position={[x - w / 2 + 0.24, y - h / 2 + 0.28, zTop - 0.002]}
         material={mats.dark}
         rotation={[Math.PI / 2, 0, 0]}
       >
-        <cylinderGeometry args={[0.042, 0.042, 0.02, SEG.dot]} />
+        <cylinderGeometry args={[0.03, 0.03, 0.012, SEG.dot]} />
       </mesh>
     </group>
   );
@@ -172,9 +151,9 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   const cover = { w: coverW ?? model.coverW, h: coverH ?? model.coverH };
   const zOut = -T / 2;
   const zG = zOut - 0.016; // window glass plane
-  const zPlate = zOut - 0.062; // camera plateau outer face
+  const zPlate = zOut - 0.058; // camera plateau outer face
   const rGlass = Math.max(0.08, model.geo.rOuter * 0.78);
-  const lensScale = model.id === 'flip-1' ? 0.8 : model.id === 'flip-3' ? 0.88 : 0.96;
+  const lensScale = model.id === 'flip-1' ? 0.68 : model.id === 'flip-3' ? 0.74 : 0.8;
   const yTop = -half * 0.855;
 
   /* polished bevel that frames a window of w × h */
@@ -201,19 +180,9 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   );
 
   const Cam = ({ x, y, s = lensScale, polished = false }) => (
-    <group position={[x, y, zPlate + 0.017]}>
+    <group position={[x, y, zPlate + 0.014]}>
       <LensStack mats={mats} r={s} polished={polished} />
     </group>
-  );
-
-  const Plateau = ({ x, y, w, h, r = 0.4 }) => (
-    <RB
-      args={[w, h, 0.062]}
-      radius={r}
-      smoothness={SM(4)}
-      position={[x, y, zPlate + 0.031]}
-      material={mats.bezel}
-    />
   );
 
   if (kind === 'pill') {
@@ -221,12 +190,10 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
     const camX = -width * 0.13;
     return (
       <group>
-        <RB
-          args={[3.05, 1.42, 0.14]}
-          radius={0.34}
-          smoothness={SM(5)}
-          position={[camX, yTop, zPlate + 0.07]}
-          material={mats.frame}
+        <mesh
+          geometry={hingePlateGeometry(3.05, 1.42, 0.16, 0.36, 0.02, SM(5))}
+          material={mats.island}
+          position={[camX, yTop, zPlate + 0.02]}
           castShadow
         />
         {[-0.68, 0.68].map((dx) => (
