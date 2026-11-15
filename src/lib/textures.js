@@ -594,6 +594,30 @@ function drawEngrave(text) {
   return c;
 }
 
+function drawWordmark(text) {
+  const W = 2048;
+  const H = 128;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.translate(W, 0);
+  ctx.scale(-1, 1);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `600 84px ${FONT}`;
+  const base = ctx.measureText(text).width;
+  if (ctx.letterSpacing !== undefined) {
+    ctx.letterSpacing = `${Math.max(0, (W * 0.88 - base) / Math.max(1, text.length - 1))}px`;
+  }
+  /* engraved: a dark cut with a lit lower lip */
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText(text, W / 2, H / 2 + 3);
+  ctx.fillStyle = 'rgba(12,16,22,0.82)';
+  ctx.fillText(text, W / 2, H / 2);
+  return c;
+}
+
 /* ---------- material maps ---------- */
 
 function drawBrushedRough(size = PERF.tier === 'low' ? 256 : 512) {
@@ -684,6 +708,10 @@ export function coverDisplayTexture(model) {
 
 export function engraveTexture(text) {
   return memo(`etch:${text}`, () => tex(drawEngrave(text), { aniso: Math.min(4, PERF.aniso) }));
+}
+
+export function wordmarkTexture(text) {
+  return memo(`word:${text}`, () => tex(drawWordmark(text), { aniso: Math.min(4, PERF.aniso) }));
 }
 
 export function brushedRoughnessTexture() {

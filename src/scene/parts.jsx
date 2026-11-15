@@ -1,39 +1,56 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { RoundedBox } from '@react-three/drei';
-import { splitScreenPlane, frameGeometry } from '../lib/shapes';
+import { roundedRectOutline, roundedFace, frameGeometry } from '../lib/shapes';
 import { SEG } from '../lib/perf';
 
 const SM = (n) => Math.max(2, Math.round(n * SEG.smooth));
 
 /* ------------------------------------------------------------------ */
-/*  lens stack                                                        */
+/*  lens stack: gunmetal barrel, polished chamfer, recessed glass      */
 /* ------------------------------------------------------------------ */
 
-function Lens({ geo, mats, r = 1, plate = 0.0, inset = 0, style = 'dark' }) {
-  const ringMat = style === 'polish' ? mats.ring : mats.ringDark;
+function LensStack({ mats, r = 1, polished = false }) {
+  const seg = SEG.lens;
   return (
     <group scale={[r, r, r]}>
-      <mesh geometry={geo.lensRing} material={ringMat} rotation={[Math.PI / 2, 0, 0]} castShadow />
+      {/* housing disc: sits proud of the island and closes the barrel */}
+      <mesh material={mats.ringDark} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.016]}>
+        <cylinderGeometry args={[0.47, 0.47, 0.07, seg]} />
+      </mesh>
+      {/* polished chamfer that catches the light on the ring's outer edge */}
+      <mesh material={mats.ring} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.032]}>
+        <cylinderGeometry args={[0.47, 0.405, 0.032, seg]} />
+      </mesh>
+      {/* flat top of the bezel */}
+      <mesh material={mats.ring} rotation={[0, Math.PI, 0]} position={[0, 0, -0.048]}>
+        <ringGeometry args={[0.4, 0.47, seg]} />
+      </mesh>
+      {/* dark wall falling to the glass seat */}
+      <mesh material={mats.ringDark} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.04]}>
+        <cylinderGeometry args={[0.355, 0.4, 0.016, seg, 1, true]} />
+      </mesh>
+      {/* cover glass, sunk below the bezel rim */}
       <mesh
-        geometry={geo.lensRingInner}
-        material={mats.ring}
-        rotation={[Math.PI / 2, 0, 0]}
-        position={[0, 0, 0.05]}
-      />
-      <mesh
-        geometry={geo.lensRim}
-        material={mats.dark}
-        rotation={[Math.PI / 2, 0, 0]}
-        position={[0, 0, 0.07]}
-      />
-      <mesh
-        geometry={geo.lensGlass}
         material={mats.lens}
         rotation={[-Math.PI / 2, 0, 0]}
-        scale={[1, 0.42, 1]}
-        position={[0, 0, 0.085]}
-      />
+        scale={[1, 0.06, 1]}
+        position={[0, 0, -0.03]}
+      >
+        <sphereGeometry args={[0.356, SEG.lensGlass[0], SEG.lensGlass[1], 0, Math.PI * 2, 0, Math.PI * 0.5]} />
+      </mesh>
+      {/* element glint in the middle of the glass */}
+      <mesh material={mats.lensInner} rotation={[0, Math.PI, 0]} position={[0, 0, -0.041]}>
+        <ringGeometry args={[0.09, 0.13, SEG.dot]} />
+      </mesh>
+      <mesh material={mats.dark} rotation={[0, Math.PI, 0]} position={[0, 0, -0.0405]}>
+        <circleGeometry args={[0.09, SEG.dot]} />
+      </mesh>
+      {polished && (
+        <mesh material={mats.ringTextured} rotation={[0, Math.PI, 0]} position={[0, 0, -0.001]}>
+          <ringGeometry args={[0.475, 0.555, SEG.ringShell]} />
+        </mesh>
+      )}
     </group>
   );
 }
@@ -41,11 +58,14 @@ function Lens({ geo, mats, r = 1, plate = 0.0, inset = 0, style = 'dark' }) {
 function Flash({ mats, s = 1, ...rest }) {
   return (
     <group scale={[s, s, s]} {...rest}>
-      <mesh material={mats.ring}>
-        <cylinderGeometry args={[0.17, 0.17, 0.09, SEG.small]} />
+      <mesh material={mats.ringDark} >
+        <cylinderGeometry args={[0.17, 0.17, 0.08, SEG.small]} />
       </mesh>
-      <mesh material={mats.flash} position={[0, 0, 0.055]}>
-        <cylinderGeometry args={[0.115, 0.115, 0.03, SEG.small]} />
+      <mesh material={mats.ring} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.03]}>
+        <cylinderGeometry args={[0.168, 0.148, 0.02, SEG.small]} />
+      </mesh>
+      <mesh material={mats.flash} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -0.042]}>
+        <cylinderGeometry args={[0.11, 0.11, 0.02, SEG.small]} />
       </mesh>
     </group>
   );
@@ -58,123 +78,86 @@ function Flash({ mats, s = 1, ...rest }) {
 export function CameraIsland({ model, mats, zBack, T }) {
   const { cam } = model;
   const plate = cam.plate ?? 0.12;
-  const r = model.id === 'fold-1' ? 0.33 : model.id === 'fold-2' ? 0.35 : 0.38;
+  const { layout, count, w, h, x, y } = cam;
 
-  const geo = useMemo(
-    () => ({
-      lensRing: new THREE.CylinderGeometry(0.46, 0.46, 0.1, SEG.lens, 1, false),
-      lensRingInner: new THREE.CylinderGeometry(0.37, 0.39, 0.05, SEG.lens, 1, false),
-      lensRim: new THREE.CylinderGeometry(0.33, 0.35, 0.08, SEG.lens, 1, false),
-      lensGlass: new THREE.SphereGeometry(0.39, SEG.lensGlass[0], SEG.lensGlass[1], 0, Math.PI * 2, 0, Math.PI * 0.5),
-    }),
-    []
+  const tp = plate * 1.15; // island thickness
+  const z = zBack - tp / 2; // plate centre
+  const zFace = zBack - tp; // plate's outer face
+
+  /* the island plate is body-coloured on the rings models (Fold6+),
+     a dark trimmed block on the early ones */
+  const plateMat =
+    layout === 'rings' || layout === 'ringsSlim' || layout === 'ultra' ? mats.frame : mats.frame;
+
+  const plateNode = (
+    <RB
+      args={[w, h, tp]}
+      radius={
+        layout === 'pill' || layout === 'pillFloat'
+          ? Math.min(w, h) / 2 - 0.02
+          : layout === 'ultra'
+            ? 0.44
+            : layout === 'rings'
+              ? 0.3
+              : 0.28
+      }
+      smoothness={SM(5)}
+      position={[x, y, z]}
+      material={plateMat}
+      castShadow
+    />
   );
 
-  const { layout, count, w, h, x, y } = cam;
-  const z = zBack - plate * 0.55;               // plate centre
-  const zFace = zBack - plate * 1.55;           // plate's outer face
-
-  // --- plate shapes -------------------------------------------------
-  const plateNode =
-    layout === 'rings' ? (
-      <RB
-        args={[w, h, plate * 2]}
-        radius={0.16}
-        smoothness={SM(4)}
-        position={[x, y, z]}
-        material={mats.ringDark}
-        castShadow
-      />
-    ) : layout === 'ringsSlim' ? (
-      <RB
-        args={[w, h, plate * 1.5]}
-        radius={0.24}
-        smoothness={SM(4)}
-        position={[x, y, z]}
-        material={mats.frame}
-        castShadow
-      />
-    ) : layout === 'ultra' ? (
-      <RB
-        args={[w, h, plate * 2]}
-        radius={0.44}
-        smoothness={SM(5)}
-        position={[x, y, z]}
-        material={mats.frame}
-        castShadow
-      />
-    ) : layout === 'pill' || layout === 'pillFloat' ? (
-      <RB
-        args={[w, h, plate * 2]}
-        radius={Math.min(w, h) / 2 - 0.02}
-        smoothness={SM(6)}
-        position={[x, y, z]}
-        material={mats.frame}
-        castShadow
-      />
-    ) : (
-      <RB
-        args={[w, h, plate * 2]}
-        radius={layout === 'block' && model.id === 'fold-1' ? 0.36 : 0.3}
-        smoothness={SM(5)}
-        position={[x, y, z]}
-        material={mats.frame}
-        castShadow
-      />
-    );
-
-  // --- lens positions ----------------------------------------------
-  const gap = count === 2 ? 1.0 : 1.15;
+  const gap = count === 2 ? 1.0 : 1.12;
   const ys = count === 2 ? [y + gap / 2, y - gap / 2] : [y + gap, y, y - gap];
-  const lensZ = zFace - 0.012;
-  const lensScale = layout === 'ultra' ? 1.28 : model.id === 'fold-1' ? 0.82 : 1;
-
-  const mult = layout === 'rings' ? 1.5 : 1; // concentric ring shell
+  const lensZ = zFace - 0.016;
+  const lensScale = layout === 'ultra' ? 1.3 : model.id === 'fold-1' ? 0.84 : 1;
 
   return (
     <group>
+      {/* bright machined lip around the island */}
+      <RB
+        args={[w + 0.07, h + 0.07, plate * 0.7]}
+        radius={
+          layout === 'pill' || layout === 'pillFloat'
+            ? Math.min(w, h) / 2
+            : layout === 'ultra'
+              ? 0.48
+              : 0.34
+        }
+        smoothness={SM(5)}
+        position={[x, y, z + plate * 0.32]}
+        material={mats.ring}
+      />
       {plateNode}
       {ys.map((ly, i) => (
         <group key={i} position={[x, ly, lensZ]}>
-          {layout === 'rings' && (
-            <mesh material={mats.ringTextured} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.05]}>
-              <cylinderGeometry args={[0.56, 0.56, 0.06, SEG.ringShell]} />
-            </mesh>
-          )}
-          <Lens
-            geo={geo}
+          <LensStack
             mats={mats}
-            r={lensScale * mult}
-            style={layout === 'ringsSlim' || layout === 'ultra' || layout === 'rings' ? 'polish' : 'dark'}
+            r={lensScale}
+            polished={layout === 'ringsSlim' || layout === 'ultra' || layout === 'rings'}
           />
         </group>
       ))}
 
-      {/* flash */}
-      {layout === 'pillFloat' ? (
-        <group position={[x + w / 2 + 0.42, y + 0.15, zFace - 0.006]}>
-          <Flash mats={mats} s={1.05} />
-        </group>
-      ) : layout === 'ultra' ? (
-        <group position={[x + 0.72, y - 0.05, zFace - 0.006]}>
-          <Flash mats={mats} s={1} />
-        </group>
-      ) : layout === 'dual' ? (
-        <group position={[x + 0.95, y + 0.2, zFace - 0.006]}>
-          <Flash mats={mats} s={0.95} />
+      {/* flash sits inside the island, beside the top lens */}
+      {layout === 'pillFloat' || layout === 'pill' ? (
+        <group position={[x + w / 2 + 0.42, y + 0.15, zFace - 0.004]}>
+          <Flash mats={mats} s={1.0} />
         </group>
       ) : (
-        <group position={[x + w / 2 + 0.34, y + 0.42, zFace - 0.006]}>
-          <Flash mats={mats} s={0.95} />
+        <group position={[x + w / 2 - 0.3, y + 1.14, zFace - 0.004]}>
+          <Flash mats={mats} s={0.82} />
         </group>
       )}
 
       {/* mic dot */}
       <mesh
-        position={[x + (layout === 'ultra' ? 0.72 : w / 2 + 0.3), y - 0.72, zFace - 0.004]}
+        position={[x + w / 2 - 0.3, y - 0.9, zFace - 0.012]}
         material={mats.dark}
+        rotation={[Math.PI / 2, 0, 0]}
       >
-        <cylinderGeometry args={[0.06, 0.06, 0.05, SEG.dot]} />
+        <cylinderGeometry args={[0.042, 0.042, 0.02, SEG.dot]} />
       </mesh>
     </group>
   );
@@ -185,58 +168,52 @@ export function CameraIsland({ model, mats, zBack, T }) {
 /* ------------------------------------------------------------------ */
 
 export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
-  const { cam } = model;
-  const cover = { w: coverW ?? model.coverW, h: coverH ?? model.coverH, kind: model.cover.kind };
-  const kind = cover.kind;
+  const kind = model.cover.kind;
+  const cover = { w: coverW ?? model.coverW, h: coverH ?? model.coverH };
   const zOut = -T / 2;
+  const zG = zOut - 0.016; // window glass plane
+  const zPlate = zOut - 0.062; // camera plateau outer face
+  const rGlass = Math.max(0.08, model.geo.rOuter * 0.78);
+  const lensScale = model.id === 'flip-1' ? 0.8 : model.id === 'flip-3' ? 0.88 : 0.96;
+  const yTop = -half * 0.855;
 
-  const geo = useMemo(
-    () => ({
-      lensRing: new THREE.CylinderGeometry(0.4, 0.4, 0.09, SEG.lensCover, 1, false),
-      lensRingInner: new THREE.CylinderGeometry(0.32, 0.34, 0.045, SEG.lensCover, 1, false),
-      lensRim: new THREE.CylinderGeometry(0.28, 0.3, 0.07, SEG.lensCover, 1, false),
-      lensGlass: new THREE.SphereGeometry(0.34, SEG.lensCoverGlass[0], SEG.lensCoverGlass[1], 0, Math.PI * 2, 0, Math.PI * 0.5),
-    }),
-    []
-  );
+  /* polished bevel that frames a window of w × h */
+  const bevel = (w, h, r) =>
+    frameGeometry(w + 0.1, h + 0.1, Math.max(0.05, r + 0.05), 0.05, 0.022);
 
-  const screenGeo = useMemo(() => splitScreenPlane(cover.w, cover.h, 0, 1), [cover.w, cover.h]);
-  const bezelGeo = useMemo(
-    () =>
-      frameGeometry(
-        cover.w + model.geo.coverBand * 2,
-        cover.h + model.geo.coverBand * 2,
-        0.42,
-        model.geo.coverBand * 0.9,
-        0.03
-      ),
-    [cover.w, cover.h, model.geo.coverBand]
-  );
-
-  const lensScale = model.id === 'flip-1' ? 0.82 : model.id === 'flip-3' ? 0.9 : 1;
-
-  /* local +y runs from the fold (0) to the free end (half).  The camera band
-     always sits at the free end; the Flex Window fills the space below it.   */
-  const yTop = -half * 0.845;
-
-  const Screen = ({ x, y, w, h, band, dz = 0 }) => (
+  const Window = ({ x, y, w, h, band = 0.16, r = rGlass, dz = 0 }) => (
     <group position={[x, y, 0]}>
-      {band != null && (
-        <RB
-          args={[w + band * 2, h + band * 2, 0.1]}
-          radius={0.28}
-          smoothness={SM(4)}
-          position={[0, 0, zOut - 0.028]}
-          material={mats.bezel}
-        />
-      )}
+      <RB
+        args={[w + band * 2, h + band * 2, 0.07]}
+        radius={0.28}
+        smoothness={SM(4)}
+        position={[0, 0, zG + 0.04 + dz]}
+        material={mats.bezel}
+      />
+      <mesh geometry={bevel(w, h, r)} material={mats.frame} position={[0, 0, zG - 0.003 + dz]} />
       <mesh
-        geometry={splitScreenPlane(w, h, 0, 1)}
+        geometry={roundedFace(roundedRectOutline(w, h, r, 0, 0), 0, 1, 0, 1)}
         material={mats.cover}
-        position={[0, 0, zOut - (band != null ? 0.085 : 0.008) + dz]}
+        position={[0, 0, zG + dz]}
         rotation={[0, Math.PI, Math.PI]}
       />
     </group>
+  );
+
+  const Cam = ({ x, y, s = lensScale, polished = false }) => (
+    <group position={[x, y, zPlate + 0.017]}>
+      <LensStack mats={mats} r={s} polished={polished} />
+    </group>
+  );
+
+  const Plateau = ({ x, y, w, h, r = 0.4 }) => (
+    <RB
+      args={[w, h, 0.062]}
+      radius={r}
+      smoothness={SM(4)}
+      position={[x, y, zPlate + 0.031]}
+      material={mats.bezel}
+    />
   );
 
   if (kind === 'pill') {
@@ -245,20 +222,20 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
     return (
       <group>
         <RB
-          args={[3.05, 1.42, 0.2]}
+          args={[3.05, 1.42, 0.14]}
           radius={0.34}
           smoothness={SM(5)}
-          position={[camX, yTop, zOut - 0.05]}
+          position={[camX, yTop, zPlate + 0.07]}
           material={mats.frame}
           castShadow
         />
         {[-0.68, 0.68].map((dx) => (
-          <group key={dx} position={[camX + dx, yTop, zOut - 0.12]}>
-            <Lens geo={geo} mats={mats} r={lensScale} style="dark" />
-          </group>
+          <Cam key={dx} x={camX + dx} y={yTop} />
         ))}
-        <Flash mats={mats} s={0.62} position={[camX + 1.32, yTop - 0.58, zOut - 0.08]} />
-        <Screen x={width * 0.3} y={yTop + 0.25} w={cover.w} h={cover.h} band={0.16} />
+        <group position={[camX + 1.32, yTop - 0.58, zPlate + 0.02]}>
+          <Flash mats={mats} s={0.6} />
+        </group>
+        <Window x={width * 0.3} y={yTop + 0.25} w={cover.w} h={cover.h} band={0.14} r={0.16} />
       </group>
     );
   }
@@ -271,56 +248,74 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
     return (
       <group>
         <RB
-          args={[width - 0.5, bandH, 0.11]}
-          radius={0.34}
+          args={[width - 0.4, bandH, 0.09]}
+          radius={0.3}
           smoothness={SM(4)}
-          position={[0, yTop + 0.28, zOut - 0.03]}
+          position={[0, yTop + 0.28, zG + 0.05]}
           material={mats.bezel}
         />
-        <Screen x={-width * 0.13} y={yTop + 0.28} w={sw} h={Math.min(sh, bandH - 0.55)} dz={-0.085} />
-        {[0.46, -0.46].map((dy) => (
-          <group key={dy} position={[width * 0.31, yTop + 0.28 + dy, zOut - 0.1]}>
-            <Lens geo={geo} mats={mats} r={lensScale} style="dark" />
-          </group>
+        <Window
+          x={-width * 0.13}
+          y={yTop + 0.28}
+          w={sw}
+          h={Math.min(sh, bandH - 0.55)}
+          band={0}
+          r={0.1}
+        />
+        {[0.5, -0.5].map((dy) => (
+          <Cam key={dy} x={width * 0.31} y={yTop + 0.28 + dy} />
         ))}
-        <Flash mats={mats} s={0.5} position={[width * 0.31, yTop - 0.72, zOut - 0.09]} />
+        <group position={[width * 0.31, yTop - 0.66, zG - 0.012]}>
+          <Flash mats={mats} s={0.52} />
+        </group>
       </group>
     );
   }
 
   if (kind === 'folder') {
-    /* Z Flip5 / Flip6: 3.4" folder Flex Window with the camera pair in the
-       top-left corner of the cover, outside the window */
+    /* Z Flip5 / Flip6: black visor band with the camera pair along the top
+       edge, 3.4" folder Flex Window below it */
+    const vy = -half + 0.92;
     return (
       <group>
-        <Screen x={width * 0.045} y={-half * 0.42} w={cover.w * 1.02} h={cover.h * 1.04} band={0.18} />
-        {[-0.68, 0.68].map((dx) => (
-          <group key={dx} position={[dx - width * 0.28, yTop + 0.1, zOut - 0.1]}>
-            <Lens geo={geo} mats={mats} r={lensScale} style="polish" />
-          </group>
+        <RB
+          args={[width - 0.34, 1.68, 0.07]}
+          radius={0.3}
+          smoothness={SM(4)}
+          position={[0, vy, zG + 0.032]}
+          material={mats.bezel}
+        />
+        {[-0.62, 0.62].map((dx) => (
+          <Cam key={dx} x={dx - width * 0.24} y={vy} polished />
         ))}
-        <Flash mats={mats} s={0.62} position={[width * 0.02, yTop + 0.1, zOut - 0.09]} />
+        <group position={[width * 0.06, vy, zPlate + 0.014]}>
+          <Flash mats={mats} s={0.56} />
+        </group>
+        <Window x={0} y={-half * 0.38} w={cover.w} h={Math.min(cover.h, half * 0.62)} band={0.13} />
       </group>
     );
   }
 
-  /* full: Z Flip7 / Flip8 — edge-to-edge Flex Window wrapping around the cameras */
+  /* full: Z Flip7 / Flip8 — edge-to-edge Flex Window that wraps the cameras */
+  const vy = -half + 0.95;
   return (
     <group>
-      <Screen x={0} y={-half * 0.455} w={cover.w * 1.04} h={cover.h * 1.05} band={0.05} />
-      <RB
-        args={[3.05, 1.5, 0.06]}
-        radius={0.4}
-        smoothness={SM(4)}
-        position={[-width * 0.24, yTop + 0.05, zOut - 0.05]}
-        material={mats.bezel}
-      />
-      {[-0.6, 0.62].map((dx) => (
-        <group key={dx} position={[dx - width * 0.24, yTop + 0.05, zOut - 0.1]}>
-          <Lens geo={geo} mats={mats} r={lensScale * 0.92} style="polish" />
+      <Window x={0} y={-half * 0.44} w={cover.w * 1.02} h={cover.h} band={0.07} />
+      {[-0.6, 0.6].map((dx) => (
+        <group key={dx}>
+          <mesh
+            position={[dx - width * 0.235, vy, zG - 0.002]}
+            material={mats.dark}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <cylinderGeometry args={[0.52, 0.52, 0.01, SEG.lens]} />
+          </mesh>
+          <Cam x={dx - width * 0.235} y={vy} s={lensScale * 0.94} polished />
         </group>
       ))}
-      <Flash mats={mats} s={0.55} position={[width * 0.02, yTop + 0.05, zOut - 0.08]} />
+      <group position={[width * 0.075, vy, zG - 0.012]}>
+        <Flash mats={mats} s={0.54} />
+      </group>
     </group>
   );
 }
@@ -328,6 +323,6 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
 /* rounded box with a radius that can never exceed the box's half-thickness */
 export function RB({ args, radius = 0.1, smoothness = 4, ...rest }) {
   const [w, h, d] = args;
-  const r = Math.max(0.005, Math.min(radius, Math.min(w, h, d) * 0.48));
+  const r = Math.max(0.004, Math.min(radius, Math.min(w, h, d) * 0.4));
   return <RoundedBox args={args} radius={r} smoothness={smoothness} {...rest} />;
 }
