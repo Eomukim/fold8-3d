@@ -276,7 +276,14 @@ export function CoverCluster({ model, mats, half, width, T, coverW, coverH }) {
   const vy = -half + 0.95;
   return (
     <group>
-      <Window x={0} y={-half * 0.44} w={cover.w * 1.02} h={cover.h} band={0.09} rim={false} />
+      <Window
+        x={0}
+        y={-Math.min(cover.h, half - 0.26) / 2 - 0.1}
+        w={cover.w * 1.02}
+        h={Math.min(cover.h, half - 0.26)}
+        band={0.09}
+        rim={false}
+      />
       {[-0.6, 0.6].map((dx) => (
         <group key={dx}>
           <mesh
